@@ -1,11 +1,6 @@
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, initializeAuth } from 'firebase/auth';
-// @ts-ignore - getReactNativePersistence's types only resolve via Metro's
-// RN-specific module resolution, not plain tsc. Correct at actual build time.
-import { getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-// @ts-ignore - no official types for this subpath
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Fill these in from your Firebase project settings (console.firebase.google.com
 // -> Project settings -> General -> Your apps -> SDK setup and configuration).
@@ -22,14 +17,23 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-// initializeAuth must be called before getAuth ever succeeds in React Native
-// (it's what registers the auth component for this platform). It throws if
-// called a second time on the same app instance (e.g. during Fast Refresh),
-// so fall back to getAuth in that case rather than re-checking getApps().
+// NOTE: We intentionally do NOT use getReactNativePersistence here. In several
+// firebase npm package versions (verified: 10.14.1), the package's exports map
+// has no "react-native" condition for the ./auth subpath, so Metro resolves to
+// the web build, which does not contain getReactNativePersistence at all —
+// calling it throws, which then made getAuth() fail with "Component auth has
+// not been registered yet" (initializeAuth never completed registration).
+//
+// Trade-off: auth state is in-memory only, so signing in again is required
+// after fully closing (not just backgrounding) the app. This can be revisited
+// later using a package like @react-native-firebase or a verified-working
+// firebase version, once the app is otherwise stable.
 let authInstance;
 try {
-  authInstance = initializeAuth(app, { persistence: getReactNativePersistence(ReactNativeAsyncStorage) });
+  authInstance = initializeAuth(app);
 } catch (e) {
+  // initializeAuth throws if called twice on the same app instance
+  // (e.g. during Fast Refresh) — fall back to the existing instance.
   authInstance = getAuth(app);
 }
 export const auth = authInstance;
