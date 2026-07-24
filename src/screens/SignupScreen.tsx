@@ -1,0 +1,68 @@
+import React, { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
+import { useAuth } from '../context/AuthContext';
+
+export default function SignupScreen({ navigation }: any) {
+  const { signUp } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const onSubmit = async () => {
+    if (password.length < 6) {
+      Alert.alert('Password too short', 'Use at least 6 characters.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await signUp(email.trim(), password);
+    } catch (err: any) {
+      Alert.alert('Sign up failed', err.message ?? 'Something went wrong.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Create your account</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Email"
+        autoCapitalize="none"
+        keyboardType="email-address"
+        value={email}
+        onChangeText={setEmail}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password (min 6 characters)"
+        secureTextEntry
+        value={password}
+        onChangeText={setPassword}
+      />
+      <Pressable style={styles.button} onPress={onSubmit} disabled={submitting}>
+        <Text style={styles.buttonText}>{submitting ? 'Creating…' : 'Create Account'}</Text>
+      </Pressable>
+      <Pressable onPress={() => navigation.navigate('Login')}>
+        <Text style={styles.link}>Already have an account? Sign in</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0F172A' },
+  title: { fontSize: 28, fontWeight: '700', color: '#F8FAFC', marginBottom: 24 },
+  input: {
+    backgroundColor: '#1E293B',
+    color: '#F8FAFC',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  button: { backgroundColor: '#6366F1', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  link: { color: '#94A3B8', textAlign: 'center', marginTop: 16 },
+});
