@@ -6,6 +6,8 @@ import { computeNextRenewalDate } from './dateHelpers';
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
   }),
@@ -51,7 +53,7 @@ export async function scheduleReminderNotification(sub: Subscription): Promise<v
       title: `${sub.name} renews soon`,
       body: `$${sub.cost.toFixed(2)} charges in ${sub.reminderDaysBefore} day${sub.reminderDaysBefore === 1 ? '' : 's'}.`,
     },
-    trigger: triggerDate,
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
   });
 }
 
