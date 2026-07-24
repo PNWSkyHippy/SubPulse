@@ -22,9 +22,17 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-export const auth = getApps().length
-  ? getAuth(app)
-  : initializeAuth(app, { persistence: getReactNativePersistence(ReactNativeAsyncStorage) });
+// initializeAuth must be called before getAuth ever succeeds in React Native
+// (it's what registers the auth component for this platform). It throws if
+// called a second time on the same app instance (e.g. during Fast Refresh),
+// so fall back to getAuth in that case rather than re-checking getApps().
+let authInstance;
+try {
+  authInstance = initializeAuth(app, { persistence: getReactNativePersistence(ReactNativeAsyncStorage) });
+} catch (e) {
+  authInstance = getAuth(app);
+}
+export const auth = authInstance;
 
 export const db = getFirestore(app);
 export default app;
