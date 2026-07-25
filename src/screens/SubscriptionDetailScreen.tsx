@@ -17,6 +17,7 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
   const [category, setCategory] = useState(sub?.category ?? '');
   const [renewalDate, setRenewalDate] = useState(sub?.nextRenewalDate ?? '');
   const [reminderDays, setReminderDays] = useState(sub ? String(sub.reminderDaysBefore) : '3');
+  const [notes, setNotes] = useState(sub?.notes ?? '');
   const [saving, setSaving] = useState(false);
 
   if (!sub) {
@@ -47,6 +48,7 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
         nextRenewalDate: renewalDate,
         reminderDaysBefore: reminderNum,
         category: category.trim() || undefined,
+        notes: notes.trim() || undefined,
       });
       Alert.alert('Saved', 'Subscription updated.');
     } catch (err: any) {
@@ -103,6 +105,15 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
       <Text style={styles.label}>Category (optional)</Text>
       <TextInput style={styles.input} value={category} onChangeText={setCategory} />
 
+      <Text style={styles.label}>Notes (optional)</Text>
+      <TextInput
+        style={[styles.input, styles.notesInput]}
+        placeholder="e.g. shared with family, cancel before trial ends"
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+      />
+
       <Pressable style={styles.button} onPress={onSave} disabled={saving}>
         <Text style={styles.buttonText}>{saving ? 'Saving…' : 'Save Changes'}</Text>
       </Pressable>
@@ -121,6 +132,7 @@ const styles = StyleSheet.create({
   currentRenewal: { color: '#94A3B8', fontSize: 13, marginTop: 4, marginBottom: 8 },
   label: { color: '#94A3B8', fontSize: 13, marginBottom: 6, marginTop: 16 },
   input: { backgroundColor: '#1E293B', color: '#F8FAFC', borderRadius: 10, padding: 14, fontSize: 16 },
+  notesInput: { minHeight: 80, textAlignVertical: 'top' },
   segmentRow: { flexDirection: 'row', gap: 8 },
   segment: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center' },
   segmentActive: { backgroundColor: '#6366F1' },

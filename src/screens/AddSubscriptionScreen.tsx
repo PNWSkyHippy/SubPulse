@@ -14,6 +14,7 @@ export default function AddSubscriptionScreen({ navigation }: any) {
   const [category, setCategory] = useState('');
   const [renewalDate, setRenewalDate] = useState(formatISODate(new Date()));
   const [reminderDays, setReminderDays] = useState('3');
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
   const onSave = async () => {
@@ -35,6 +36,7 @@ export default function AddSubscriptionScreen({ navigation }: any) {
         nextRenewalDate: renewalDate,
         reminderDaysBefore: reminderNum,
         category: category.trim() || undefined,
+        notes: notes.trim() || undefined,
       });
       navigation.goBack();
     } catch (err: any) {
@@ -81,6 +83,15 @@ export default function AddSubscriptionScreen({ navigation }: any) {
       <Text style={styles.label}>Category (optional)</Text>
       <TextInput style={styles.input} placeholder="Streaming" value={category} onChangeText={setCategory} />
 
+      <Text style={styles.label}>Notes (optional)</Text>
+      <TextInput
+        style={[styles.input, styles.notesInput]}
+        placeholder="e.g. shared with family, cancel before trial ends"
+        value={notes}
+        onChangeText={setNotes}
+        multiline
+      />
+
       <Pressable style={styles.button} onPress={onSave} disabled={saving}>
         <Text style={styles.buttonText}>{saving ? 'Saving…' : 'Save Subscription'}</Text>
       </Pressable>
@@ -93,6 +104,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: '700', color: '#F8FAFC', marginBottom: 20 },
   label: { color: '#94A3B8', fontSize: 13, marginBottom: 6, marginTop: 14 },
   input: { backgroundColor: '#1E293B', color: '#F8FAFC', borderRadius: 10, padding: 14, fontSize: 16 },
+  notesInput: { minHeight: 80, textAlignVertical: 'top' },
   segmentRow: { flexDirection: 'row', gap: 8 },
   segment: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center' },
   segmentActive: { backgroundColor: '#6366F1' },
