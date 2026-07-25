@@ -10,6 +10,7 @@ import { exportSubscriptionsToCSV } from '../utils/csvExport';
 import { Subscription } from '../types';
 
 type SortKey = 'renewal' | 'cost' | 'name' | 'category';
+type SortDirection = 'asc' | 'desc';
 type Period = 'monthly' | 'yearly';
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
@@ -19,24 +20,31 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'category', label: 'Category' },
 ];
 
-function sortSubscriptions(subs: Subscription[], sortKey: SortKey): Subscription[] {
+function sortSubscriptions(subs: Subscription[], sortKey: SortKey, direction: SortDirection): Subscription[] {
   const copy = [...subs];
+  let sortedCopy: Subscription[];
   switch (sortKey) {
     case 'renewal':
-      return copy.sort((a, b) => a.nextRenewalDate.localeCompare(b.nextRenewalDate));
+      sortedCopy = copy.sort((a, b) => a.nextRenewalDate.localeCompare(b.nextRenewalDate));
+      break;
     case 'cost':
-      return copy.sort((a, b) => b.cost - a.cost);
+      sortedCopy = copy.sort((a, b) => a.cost - b.cost);
+      break;
     case 'name':
-      return copy.sort((a, b) => a.name.localeCompare(b.name));
+      sortedCopy = copy.sort((a, b) => a.name.localeCompare(b.name));
+      break;
     case 'category':
-      return copy.sort((a, b) => (a.category ?? 'Uncategorized').localeCompare(b.category ?? 'Uncategorized'));
+      sortedCopy = copy.sort((a, b) => (a.category ?? 'Uncategorized').localeCompare(b.category ?? 'Uncategorized'));
+      break;
   }
+  return direction === 'desc' ? sortedCopy.reverse() : sortedCopy;
 }
 
 export default function HomeScreen({ navigation }: any) {
   const { subscriptions, loading } = useSubscriptions();
   const { signOut } = useAuth();
   const [sortKey, setSortKey] = useState<SortKey>('renewal');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [period, setPeriod] = useState<Period>('monthly');
   const [exporting, setExporting] = useState(false);
 
@@ -44,8 +52,20 @@ export default function HomeScreen({ navigation }: any) {
     requestNotificationPermission();
   }, []);
 
+  const onSelectSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
   const summary = useMemo(() => summarizeMonthlySpend(subscriptions), [subscriptions]);
-  const sorted = useMemo(() => sortSubscriptions(subscriptions, sortKey), [subscriptions, sortKey]);
+  const sorted = useMemo(
+    () => sortSubscriptions(subscriptions, sortKey, sortDirection),
+    [subscriptions, sortKey, sortDirection]
+  );
   const periodMultiplier = period === 'yearly' ? 12 : 1;
   const currencyCodes = Object.keys(summary.byCurrency);
   const singleCurrency = currencyCodes.length <= 1;
@@ -133,9 +153,11 @@ export default function HomeScreen({ navigation }: any) {
             <Pressable
               key={opt.key}
               style={[styles.sortChip, sortKey === opt.key && styles.sortChipActive]}
-              onPress={() => setSortKey(opt.key)}
+              onPress={() => onSelectSort(opt.key)}
             >
-              <Text style={[styles.sortChipText, sortKey === opt.key && styles.sortChipTextActive]}>{opt.label}</Text>
+              <Text style={[styles.sortChipText, sortKey === opt.key && styles.sortChipTextActive]}>
+                {opt.label}{sortKey === opt.key ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}
+              </Text>
             </Pressable>
           ))}
         </View>
