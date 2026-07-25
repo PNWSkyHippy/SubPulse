@@ -51,8 +51,14 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
 
   const addSubscription: SubscriptionsContextValue['addSubscription'] = async (sub) => {
     if (!user) throw new Error('Must be signed in to add a subscription');
+    // Firestore rejects any field whose value is `undefined` — it must be
+    // omitted from the document entirely rather than set to undefined.
+    // Optional fields like `category` produce `undefined` when left blank.
+    const cleanSub = Object.fromEntries(
+      Object.entries(sub).filter(([, value]) => value !== undefined)
+    ) as typeof sub;
     const docRef = await addDoc(collection(db, COLLECTION), {
-      ...sub,
+      ...cleanSub,
       ownerId: user.uid,
       createdAt: new Date().toISOString(),
     });
@@ -60,7 +66,10 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
   };
 
   const updateSubscription: SubscriptionsContextValue['updateSubscription'] = async (id, updates) => {
-    await updateDoc(doc(db, COLLECTION, id), updates);
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([, value]) => value !== undefined)
+    );
+    await updateDoc(doc(db, COLLECTION, id), cleanUpdates);
     const updated = subscriptions.find((s) => s.id === id);
     if (updated) await scheduleReminderNotification({ ...updated, ...updates });
   };
