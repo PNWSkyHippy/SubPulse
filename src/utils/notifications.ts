@@ -60,3 +60,15 @@ export async function scheduleReminderNotification(sub: Subscription): Promise<v
 export async function cancelReminderNotification(subscriptionId: string): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(notificationIdFor(subscriptionId)).catch(() => {});
 }
+
+/** Fires a notification ~10 seconds from now, for verifying that permissions
+ * and delivery actually work, independent of renewal-date scheduling logic. */
+export async function sendTestNotification(): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Test notification',
+      body: 'If you see this, local notifications are working correctly.',
+    },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 10, repeats: false },
+  });
+}
