@@ -77,6 +77,7 @@ export function shouldFireReminder(sub: Subscription, today: Date = new Date()):
 
 export function summarizeMonthlySpend(subs: Subscription[]): MonthlySpendSummary {
   const byCategory: Record<string, number> = {};
+  const byCurrency: Record<string, number> = {};
   let totalMonthly = 0;
 
   for (const sub of subs) {
@@ -84,6 +85,7 @@ export function summarizeMonthlySpend(subs: Subscription[]): MonthlySpendSummary
     totalMonthly += monthly;
     const cat = sub.category?.trim() || 'Uncategorized';
     byCategory[cat] = (byCategory[cat] || 0) + monthly;
+    byCurrency[sub.currency] = (byCurrency[sub.currency] || 0) + monthly;
   }
 
   // Round to cents to avoid floating point noise in the UI.
@@ -91,6 +93,9 @@ export function summarizeMonthlySpend(subs: Subscription[]): MonthlySpendSummary
   for (const cat of Object.keys(byCategory)) {
     byCategory[cat] = Math.round(byCategory[cat] * 100) / 100;
   }
+  for (const cur of Object.keys(byCurrency)) {
+    byCurrency[cur] = Math.round(byCurrency[cur] * 100) / 100;
+  }
 
-  return { totalMonthly, byCategory, subscriptionCount: subs.length };
+  return { totalMonthly, byCategory, byCurrency, subscriptionCount: subs.length };
 }

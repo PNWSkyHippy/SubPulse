@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Subscription } from '../types';
 import { computeNextRenewalDate, daysUntil, formatISODate } from '../utils/dateHelpers';
+import { formatCurrency } from '../utils/currency';
 
 export default function SubscriptionCard({
   sub,
@@ -26,7 +27,7 @@ export default function SubscriptionCard({
         </Text>
       </View>
       <View style={{ alignItems: 'flex-end' }}>
-        <Text style={styles.cost}>${sub.cost.toFixed(2)}</Text>
+        <Text style={styles.cost}>{formatCurrency(sub.cost, sub.currency)}</Text>
         <Text style={[styles.days, { color: urgencyColor }]}>
           {days === 0 ? 'Renews today' : days < 0 ? 'Overdue' : `${days}d · ${formatISODate(nextRenewal)}`}
         </Text>

@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, Alert, ScrollView } from 
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { BillingCycle } from '../types';
 import { computeNextRenewalDate, formatISODate } from '../utils/dateHelpers';
+import CurrencyPicker from '../components/CurrencyPicker';
 
 const CYCLES: BillingCycle[] = ['weekly', 'monthly', 'yearly'];
 
@@ -13,6 +14,7 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
 
   const [name, setName] = useState(sub?.name ?? '');
   const [cost, setCost] = useState(sub ? String(sub.cost) : '');
+  const [currency, setCurrency] = useState(sub?.currency ?? 'USD');
   const [cycle, setCycle] = useState<BillingCycle>(sub?.billingCycle ?? 'monthly');
   const [category, setCategory] = useState(sub?.category ?? '');
   const [renewalDate, setRenewalDate] = useState(sub?.nextRenewalDate ?? '');
@@ -44,6 +46,7 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
       await updateSubscription(sub.id, {
         name: name.trim(),
         cost: costNum,
+        currency,
         billingCycle: cycle,
         nextRenewalDate: renewalDate,
         reminderDaysBefore: reminderNum,
@@ -82,6 +85,9 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
 
       <Text style={styles.label}>Cost per billing cycle</Text>
       <TextInput style={styles.input} keyboardType="decimal-pad" value={cost} onChangeText={setCost} />
+
+      <Text style={styles.label}>Currency</Text>
+      <CurrencyPicker value={currency} onChange={setCurrency} />
 
       <Text style={styles.label}>Billing cycle</Text>
       <View style={styles.segmentRow}>

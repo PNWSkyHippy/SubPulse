@@ -120,4 +120,15 @@ describe('summarizeMonthlySpend', () => {
     const summary = summarizeMonthlySpend(subs);
     expect(summary.byCategory['Uncategorized']).toBeDefined();
   });
+
+  test('groups totals by currency', () => {
+    const subs: Subscription[] = [
+      makeSub({ id: '1', cost: 10, currency: 'USD' }),
+      makeSub({ id: '2', cost: 20, currency: 'USD' }),
+      makeSub({ id: '3', cost: 5, currency: 'EUR' }),
+    ];
+    const summary = summarizeMonthlySpend(subs);
+    expect(summary.byCurrency['USD']).toBeCloseTo(30);
+    expect(summary.byCurrency['EUR']).toBeCloseTo(5);
+  });
 });

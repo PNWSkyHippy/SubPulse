@@ -17,5 +17,6 @@ export interface Subscription {
 export interface MonthlySpendSummary {
   totalMonthly: number;
   byCategory: Record<string, number>;
+  byCurrency: Record<string, number>;
   subscriptionCount: number;
 }
