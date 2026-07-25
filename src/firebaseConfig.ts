@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, initializeAuth } from 'firebase/auth';
+import { initializeAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 // Fill these in from your Firebase project settings (console.firebase.google.com
@@ -28,15 +28,13 @@ const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 // after fully closing (not just backgrounding) the app. This can be revisited
 // later using a package like @react-native-firebase or a verified-working
 // firebase version, once the app is otherwise stable.
-let authInstance;
-try {
-  authInstance = initializeAuth(app);
-} catch (e) {
-  // initializeAuth throws if called twice on the same app instance
-  // (e.g. during Fast Refresh) — fall back to the existing instance.
-  authInstance = getAuth(app);
-}
-export const auth = authInstance;
+// No try/catch here on purpose: calling initializeAuth() twice on the same
+// app instance is safe (verified — it just returns the existing instance,
+// it does not throw). If this line throws, we WANT to see that real error
+// on screen rather than silently falling into getAuth(), whose own internal
+// auto-init path throws a generic, misleading "Component auth has not been
+// registered yet" that hides what actually went wrong here.
+export const auth = initializeAuth(app);
 
 export const db = getFirestore(app);
 export default app;
