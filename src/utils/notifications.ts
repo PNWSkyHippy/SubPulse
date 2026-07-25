@@ -59,20 +59,3 @@ export async function scheduleReminderNotification(sub: Subscription): Promise<v
 export async function cancelReminderNotification(subscriptionId: string): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(notificationIdFor(subscriptionId)).catch(() => {});
 }
-
-/** Fires a notification ~10 seconds from now, for verifying that permissions
- * and delivery actually work, independent of renewal-date scheduling logic.
- * Uses a DATE trigger (not TIME_INTERVAL) — TIME_INTERVAL with repeats:false
- * was observed re-firing repeatedly instead of once on Expo Go/Android. */
-export async function sendTestNotification(): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync('test-notification').catch(() => {});
-  const triggerDate = new Date(Date.now() + 10_000);
-  await Notifications.scheduleNotificationAsync({
-    identifier: 'test-notification',
-    content: {
-      title: 'Test notification',
-      body: 'If you see this, local notifications are working correctly.',
-    },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: triggerDate },
-  });
-}

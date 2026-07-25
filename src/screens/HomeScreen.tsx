@@ -1,10 +1,10 @@
 import React, { useEffect } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { useAuth } from '../context/AuthContext';
 import SubscriptionCard from '../components/SubscriptionCard';
 import { summarizeMonthlySpend } from '../utils/dateHelpers';
-import { requestNotificationPermission, sendTestNotification } from '../utils/notifications';
+import { requestNotificationPermission } from '../utils/notifications';
 
 export default function HomeScreen({ navigation }: any) {
   const { subscriptions, loading } = useSubscriptions();
@@ -37,17 +37,6 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.signOut}>Sign out</Text>
         </Pressable>
       </View>
-
-      {/* TEMPORARY debug button — remove once notification delivery is confirmed working */}
-      <Pressable
-        style={({ pressed }) => [styles.testButton, pressed && styles.testButtonPressed]}
-        onPress={async () => {
-          Alert.alert('Tap registered', 'Notification scheduled. Swipe down your notification shade in about 10 seconds.');
-          await sendTestNotification();
-        }}
-      >
-        <Text style={styles.testButtonText}>Send test notification (10s)</Text>
-      </Pressable>
 
       <FlatList
         data={sorted}
@@ -82,9 +71,6 @@ const styles = StyleSheet.create({
   headerTotal: { color: '#F8FAFC', fontSize: 34, fontWeight: '800', marginTop: 2 },
   headerSub: { color: '#94A3B8', fontSize: 13, marginTop: 2 },
   signOut: { color: '#F87171', fontSize: 14 },
-  testButton: { marginHorizontal: 20, marginBottom: 8, padding: 10, borderRadius: 8, backgroundColor: '#1E293B', alignItems: 'center' },
-  testButtonPressed: { backgroundColor: '#334155' },
-  testButtonText: { color: '#94A3B8', fontSize: 12 },
   empty: { color: '#94A3B8', textAlign: 'center', marginTop: 60 },
   fab: {
     position: 'absolute',
