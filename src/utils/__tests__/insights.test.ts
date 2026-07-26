@@ -1,4 +1,4 @@
-import { findDuplicateSubscriptions, findYearlySavingsCandidates } from '../insights';
+import { findDuplicateSubscriptions, findYearlySavingsCandidates, findRealSavingsOpportunities } from '../insights';
 import { Subscription } from '../../types';
 
 function makeSub(overrides: Partial<Subscription>): Subscription {
@@ -88,5 +88,90 @@ describe('findYearlySavingsCandidates', () => {
   test('returns empty array when everything is already yearly', () => {
     const subs = [makeSub({ id: '1', billingCycle: 'yearly' })];
     expect(findYearlySavingsCandidates(subs)).toEqual([]);
+  });
+
+  test('excludes subscriptions that have a real (user-entered) savings opportunity', () => {
+    const subs = [
+      makeSub({
+        id: '1',
+        name: 'Netflix',
+        billingCycle: 'monthly',
+        cost: 15.49,
+        alternatePrices: { yearly: 120 }, // real, cheaper alternative known
+      }),
+      makeSub({ id: '2', name: 'Spotify', billingCycle: 'monthly', cost: 11.99 }), // no known alternative
+    ];
+    const candidates = findYearlySavingsCandidates(subs);
+    // Netflix should NOT appear here since it has a precise opportunity instead.
+    expect(candidates.map((s) => s.id)).toEqual(['2']);
+  });
+});
+
+describe('findRealSavingsOpportunities', () => {
+  test('finds a real savings opportunity when an entered alternate price is cheaper annualized', () => {
+    const subs = [
+      makeSub({
+        id: '1',
+        name: 'Netflix',
+        billingCycle: 'monthly',
+        cost: 15.49, // $185.88/year
+        alternatePrices: { yearly: 120 }, // cheaper: $120/year
+      }),
+    ];
+    const results = findRealSavingsOpportunities(subs);
+    expect(results.length).toBe(1);
+    expect(results[0].cheaperCycle).toBe('yearly');
+    expect(results[0].annualSavings).toBeCloseTo(185.88 - 120, 1);
+  });
+
+  test('ignores an alternate price that is NOT actually cheaper', () => {
+    const subs = [
+      makeSub({
+        id: '1',
+        billingCycle: 'monthly',
+        cost: 10, // $120/year
+        alternatePrices: { yearly: 150 }, // worse deal, should not be flagged
+      }),
+    ];
+    expect(findRealSavingsOpportunities(subs)).toEqual([]);
+  });
+
+  test('ignores subscriptions with no alternatePrices at all', () => {
+    const subs = [makeSub({ id: '1', billingCycle: 'monthly', cost: 10 })];
+    expect(findRealSavingsOpportunities(subs)).toEqual([]);
+  });
+
+  test('picks the cheapest of multiple entered alternates', () => {
+    const subs = [
+      makeSub({
+        id: '1',
+        billingCycle: 'monthly',
+        cost: 20, // $240/year
+        alternatePrices: { quarterly: 55, yearly: 180 }, // quarterly: $220/yr, yearly: $180/yr -> yearly wins
+      }),
+    ];
+    const results = findRealSavingsOpportunities(subs);
+    expect(results[0].cheaperCycle).toBe('yearly');
+  });
+
+  test('sorts multiple opportunities by savings amount, largest first', () => {
+    const subs = [
+      makeSub({ id: '1', name: 'Small saving', billingCycle: 'monthly', cost: 10, alternatePrices: { yearly: 110 } }),
+      makeSub({ id: '2', name: 'Big saving', billingCycle: 'monthly', cost: 50, alternatePrices: { yearly: 300 } }),
+    ];
+    const results = findRealSavingsOpportunities(subs);
+    expect(results.map((r) => r.subscription.id)).toEqual(['2', '1']);
+  });
+
+  test('ignores an alternatePrices entry for the same cycle the subscription is already on', () => {
+    const subs = [
+      makeSub({
+        id: '1',
+        billingCycle: 'monthly',
+        cost: 10,
+        alternatePrices: { monthly: 5 }, // nonsensical entry for its own current cycle, should be skipped
+      }),
+    ];
+    expect(findRealSavingsOpportunities(subs)).toEqual([]);
   });
 });

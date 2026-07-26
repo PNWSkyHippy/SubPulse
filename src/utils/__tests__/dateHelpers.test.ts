@@ -40,6 +40,9 @@ describe('normalizeToMonthlyCost', () => {
   test('weekly cost uses 52/12 weeks per month', () => {
     expect(normalizeToMonthlyCost(10, 'weekly')).toBeCloseTo((10 * 52) / 12);
   });
+  test('quarterly cost divides by 3', () => {
+    expect(normalizeToMonthlyCost(30, 'quarterly')).toBeCloseTo(10);
+  });
 });
 
 describe('computeNextRenewalDate', () => {
@@ -67,6 +70,13 @@ describe('computeNextRenewalDate', () => {
     const result = computeNextRenewalDate('2026-07-01', 'weekly', today);
     // 2026-07-01 + 7*4 = 2026-07-29 is the first occurrence >= today
     expect(formatISODate(result)).toBe('2026-07-29');
+  });
+
+  test('rolls a stale quarterly date forward by 3-month increments', () => {
+    const today = parseISODate('2026-07-24');
+    const result = computeNextRenewalDate('2026-01-01', 'quarterly', today);
+    // Jan 1 -> Apr 1 -> Jul 1 (still stale) -> Oct 1
+    expect(formatISODate(result)).toBe('2026-10-01');
   });
 });
 

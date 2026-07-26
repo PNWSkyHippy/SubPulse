@@ -9,7 +9,10 @@ function escapeCsvField(value: string): string {
 }
 
 export function generateSubscriptionsCSV(subs: Subscription[]): string {
-  const headers = ['Name', 'Cost', 'Currency', 'Billing Cycle', 'Next Renewal', 'Category', 'Notes'];
+  const headers = [
+    'Name', 'Cost', 'Currency', 'Billing Cycle', 'Next Renewal', 'Category', 'Notes',
+    'Alt Weekly Price', 'Alt Monthly Price', 'Alt Quarterly Price', 'Alt Yearly Price',
+  ];
   const rows = subs.map((sub) => {
     const nextRenewal = formatISODate(computeNextRenewalDate(sub.nextRenewalDate, sub.billingCycle));
     return [
@@ -20,6 +23,10 @@ export function generateSubscriptionsCSV(subs: Subscription[]): string {
       nextRenewal,
       sub.category ?? '',
       sub.notes ?? '',
+      sub.alternatePrices?.weekly?.toString() ?? '',
+      sub.alternatePrices?.monthly?.toString() ?? '',
+      sub.alternatePrices?.quarterly?.toString() ?? '',
+      sub.alternatePrices?.yearly?.toString() ?? '',
     ]
       .map(escapeCsvField)
       .join(',');
@@ -101,6 +108,7 @@ export interface ParsedSubscriptionInput {
   reminderDaysBefore: number;
   category?: string;
   notes?: string;
+  alternatePrices?: Partial<Record<BillingCycle, number>>;
 }
 
 export interface CSVImportResult {
@@ -108,7 +116,7 @@ export interface CSVImportResult {
   errors: string[];
 }
 
-const VALID_CYCLES: BillingCycle[] = ['weekly', 'monthly', 'yearly'];
+const VALID_CYCLES: BillingCycle[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
 const HEADER_ALIASES: Record<string, string> = {
   name: 'name',
   cost: 'cost',
@@ -119,6 +127,10 @@ const HEADER_ALIASES: Record<string, string> = {
   'next renewal date': 'nextRenewalDate',
   category: 'category',
   notes: 'notes',
+  'alt weekly price': 'altWeekly',
+  'alt monthly price': 'altMonthly',
+  'alt quarterly price': 'altQuarterly',
+  'alt yearly price': 'altYearly',
 };
 
 /**
@@ -182,6 +194,24 @@ export function parseSubscriptionsCSV(text: string): CSVImportResult {
       errors.push(`Row ${rowNum} (${name}): invalid date "${dateRaw}", defaulted to today.`);
     }
 
+    const altPrices: Partial<Record<BillingCycle, number>> = {};
+    const altColumns: [string, BillingCycle][] = [
+      ['altWeekly', 'weekly'],
+      ['altMonthly', 'monthly'],
+      ['altQuarterly', 'quarterly'],
+      ['altYearly', 'yearly'],
+    ];
+    for (const [column, altCycle] of altColumns) {
+      const raw = get(column);
+      if (!raw) continue;
+      const num = parseFloat(raw);
+      if (isNaN(num) || num < 0) {
+        errors.push(`Row ${rowNum} (${name}): invalid alternate ${altCycle} price "${raw}", ignored.`);
+        continue;
+      }
+      altPrices[altCycle] = num;
+    }
+
     rows.push({
       name,
       cost: costNum,
@@ -191,6 +221,7 @@ export function parseSubscriptionsCSV(text: string): CSVImportResult {
       reminderDaysBefore: 3,
       category: get('category') || undefined,
       notes: get('notes') || undefined,
+      alternatePrices: Object.keys(altPrices).length > 0 ? altPrices : undefined,
     });
   }
 

@@ -17,6 +17,8 @@ export function normalizeToMonthlyCost(cost: number, cycle: BillingCycle): numbe
       return (cost * 52) / 12;
     case 'monthly':
       return cost;
+    case 'quarterly':
+      return cost / 3;
     case 'yearly':
       return cost / 12;
     default:
@@ -32,6 +34,9 @@ function addCycle(date: Date, cycle: BillingCycle): Date {
       break;
     case 'monthly':
       next.setUTCMonth(next.getUTCMonth() + 1);
+      break;
+    case 'quarterly':
+      next.setUTCMonth(next.getUTCMonth() + 3);
       break;
     case 'yearly':
       next.setUTCFullYear(next.getUTCFullYear() + 1);

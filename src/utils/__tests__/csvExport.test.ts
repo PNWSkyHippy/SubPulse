@@ -23,7 +23,9 @@ describe('generateSubscriptionsCSV', () => {
       makeSub({ name: 'Spotify', cost: 11.99, category: 'Streaming' }),
     ]);
     const lines = csv.split('\n');
-    expect(lines[0]).toBe('Name,Cost,Currency,Billing Cycle,Next Renewal,Category,Notes');
+    expect(lines[0]).toBe(
+      'Name,Cost,Currency,Billing Cycle,Next Renewal,Category,Notes,Alt Weekly Price,Alt Monthly Price,Alt Quarterly Price,Alt Yearly Price'
+    );
     expect(lines.length).toBe(3);
     expect(lines[1]).toContain('Netflix');
     expect(lines[2]).toContain('Spotify');
@@ -42,7 +44,8 @@ describe('generateSubscriptionsCSV', () => {
   test('handles missing optional fields as empty strings', () => {
     const csv = generateSubscriptionsCSV([makeSub({ category: undefined, notes: undefined })]);
     const dataLine = csv.split('\n')[1];
-    expect(dataLine.endsWith(',,')).toBe(true);
+    // category, notes, and all 4 alternate-price columns are empty -> 6 trailing empty fields.
+    expect(dataLine.endsWith(',,,,,,')).toBe(true);
   });
 });
 
@@ -94,6 +97,23 @@ describe('parseSubscriptionsCSV', () => {
     expect(rows[1].category).toBeUndefined();
   });
 
+  test('round-trips alternatePrices through export and import', () => {
+    const original = [
+      makeSub({
+        name: 'Netflix',
+        billingCycle: 'monthly',
+        cost: 15.49,
+        alternatePrices: { yearly: 120, quarterly: 40 },
+      }),
+      makeSub({ name: 'Spotify', billingCycle: 'monthly', cost: 11.99 }), // no alternate prices at all
+    ];
+    const csv = generateSubscriptionsCSV(original);
+    const { rows, errors } = parseSubscriptionsCSV(csv);
+
+    expect(errors).toEqual([]);
+    expect(rows[0].alternatePrices).toEqual({ yearly: 120, quarterly: 40 });
+    expect(rows[1].alternatePrices).toBeUndefined();
+  });
   test('works with reordered columns (matches by header name, not position)', () => {
     const csv = 'Category,Name,Cost\nStreaming,Netflix,15.49';
     const { rows, errors } = parseSubscriptionsCSV(csv);

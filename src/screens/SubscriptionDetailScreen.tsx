@@ -4,8 +4,9 @@ import { useSubscriptions } from '../context/SubscriptionsContext';
 import { BillingCycle } from '../types';
 import { computeNextRenewalDate, formatISODate } from '../utils/dateHelpers';
 import CurrencyPicker from '../components/CurrencyPicker';
+import AlternatePricesInput from '../components/AlternatePricesInput';
 
-const CYCLES: BillingCycle[] = ['weekly', 'monthly', 'yearly'];
+const CYCLES: BillingCycle[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
 
 export default function SubscriptionDetailScreen({ route, navigation }: any) {
   const { id } = route.params;
@@ -20,6 +21,9 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
   const [renewalDate, setRenewalDate] = useState(sub?.nextRenewalDate ?? '');
   const [reminderDays, setReminderDays] = useState(sub ? String(sub.reminderDaysBefore) : '3');
   const [notes, setNotes] = useState(sub?.notes ?? '');
+  const [alternatePrices, setAlternatePrices] = useState<Partial<Record<BillingCycle, number>>>(
+    sub?.alternatePrices ?? {}
+  );
   const [saving, setSaving] = useState(false);
 
   if (!sub) {
@@ -52,6 +56,7 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
         reminderDaysBefore: reminderNum,
         category: category.trim() || undefined,
         notes: notes.trim() || undefined,
+        alternatePrices: Object.keys(alternatePrices).length > 0 ? alternatePrices : undefined,
       });
       Alert.alert('Saved', 'Subscription updated.');
     } catch (err: any) {
@@ -120,6 +125,9 @@ export default function SubscriptionDetailScreen({ route, navigation }: any) {
         multiline
       />
 
+      <Text style={styles.label}>Other pricing options (optional)</Text>
+      <AlternatePricesInput currentCycle={cycle} value={alternatePrices} onChange={setAlternatePrices} />
+
       <Pressable style={styles.button} onPress={onSave} disabled={saving}>
         <Text style={styles.buttonText}>{saving ? 'Saving…' : 'Save Changes'}</Text>
       </Pressable>
@@ -142,7 +150,7 @@ const styles = StyleSheet.create({
   segmentRow: { flexDirection: 'row', gap: 8 },
   segment: { flex: 1, padding: 12, borderRadius: 10, backgroundColor: '#1E293B', alignItems: 'center' },
   segmentActive: { backgroundColor: '#6366F1' },
-  segmentText: { color: '#94A3B8', textTransform: 'capitalize' },
+  segmentText: { color: '#94A3B8', textTransform: 'capitalize', fontSize: 12 },
   segmentTextActive: { color: '#fff', fontWeight: '600' },
   button: { backgroundColor: '#6366F1', borderRadius: 10, padding: 16, alignItems: 'center', marginTop: 28 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
