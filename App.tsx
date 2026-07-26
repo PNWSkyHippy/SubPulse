@@ -13,6 +13,7 @@ import HomeScreen from './src/screens/HomeScreen';
 import AddSubscriptionScreen from './src/screens/AddSubscriptionScreen';
 import SubscriptionDetailScreen from './src/screens/SubscriptionDetailScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
+import InsightsScreen from './src/screens/InsightsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -36,6 +37,7 @@ function RootNavigator() {
             <Stack.Screen name="AddSubscription" component={AddSubscriptionScreen} options={{ headerShown: true, title: 'Add Subscription' }} />
             <Stack.Screen name="SubscriptionDetail" component={SubscriptionDetailScreen} options={{ headerShown: true, title: 'Details' }} />
             <Stack.Screen name="Calendar" component={CalendarScreen} options={{ headerShown: true, title: 'Calendar' }} />
+            <Stack.Screen name="Insights" component={InsightsScreen} options={{ headerShown: true, title: 'Insights' }} />
           </Stack.Group>
         ) : (
           <Stack.Group>
