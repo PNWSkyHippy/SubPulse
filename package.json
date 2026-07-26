@@ -37,8 +37,9 @@
   },
   "private": true,
   "overrides": {
-    "undici": "^6.24.0",
-    "postcss": "^8.5.23",
-    "uuid": "^14.0.1"
+    "undici": ">=6.27.0 <7.0.0",
+    "postcss": ">=8.5.18",
+    "uuid": ">=11.1.1",
+    "brace-expansion": ">=5.0.8"
   }
 }
