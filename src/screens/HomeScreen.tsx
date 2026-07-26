@@ -182,6 +182,9 @@ export default function HomeScreen({ navigation }: any) {
           <Pressable onPress={signOut}>
             <Text style={styles.signOut}>Sign out</Text>
           </Pressable>
+          <Pressable onPress={() => navigation.navigate('Calendar')}>
+            <Text style={styles.exportLink}>Calendar</Text>
+          </Pressable>
           <Pressable onPress={onExport} disabled={exporting}>
             <Text style={styles.exportLink}>{exporting ? 'Backing up…' : 'Backup (CSV)'}</Text>
           </Pressable>

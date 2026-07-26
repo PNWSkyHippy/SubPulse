@@ -6,6 +6,8 @@ import {
   summarizeMonthlySpend,
   parseISODate,
   formatISODate,
+  getMonthGrid,
+  groupSubscriptionsByRenewalDate,
 } from '../dateHelpers';
 import { Subscription } from '../../types';
 
@@ -130,5 +132,50 @@ describe('summarizeMonthlySpend', () => {
     const summary = summarizeMonthlySpend(subs);
     expect(summary.byCurrency['USD']).toBeCloseTo(30);
     expect(summary.byCurrency['EUR']).toBeCloseTo(5);
+  });
+});
+
+describe('getMonthGrid', () => {
+  test('July 2026 starts on Wednesday and has 31 days, laid out in 5 weeks', () => {
+    const grid = getMonthGrid(2026, 6); // month is 0-indexed: 6 = July
+    expect(grid[0]).toEqual([null, null, null, 1, 2, 3, 4]);
+    expect(grid.length).toBe(5);
+    const lastWeek = grid[grid.length - 1];
+    expect(lastWeek).toEqual([26, 27, 28, 29, 30, 31, null]);
+  });
+
+  test('February 2026 (non-leap year) has 28 days', () => {
+    const grid = getMonthGrid(2026, 1); // February
+    const allDays = grid.flat().filter((d) => d !== null);
+    expect(Math.max(...(allDays as number[]))).toBe(28);
+  });
+
+  test('February 2028 (leap year) has 29 days', () => {
+    const grid = getMonthGrid(2028, 1);
+    const allDays = grid.flat().filter((d) => d !== null);
+    expect(Math.max(...(allDays as number[]))).toBe(29);
+  });
+});
+
+describe('groupSubscriptionsByRenewalDate', () => {
+  test('groups subscriptions under their computed next renewal date', () => {
+    const today = parseISODate('2026-07-24');
+    const subs: Subscription[] = [
+      makeSub({ id: '1', name: 'Netflix', nextRenewalDate: '2026-07-30', billingCycle: 'monthly' }),
+      makeSub({ id: '2', name: 'Spotify', nextRenewalDate: '2026-07-30', billingCycle: 'monthly' }),
+      makeSub({ id: '3', name: 'Domain', nextRenewalDate: '2026-08-15', billingCycle: 'yearly' }),
+    ];
+    const groups = groupSubscriptionsByRenewalDate(subs, today);
+    expect(groups['2026-07-30']?.map((s) => s.name).sort()).toEqual(['Netflix', 'Spotify']);
+    expect(groups['2026-08-15']?.map((s) => s.name)).toEqual(['Domain']);
+  });
+
+  test('rolls a stale renewal date forward before grouping', () => {
+    const today = parseISODate('2026-08-05');
+    const subs: Subscription[] = [makeSub({ id: '1', nextRenewalDate: '2026-07-01', billingCycle: 'monthly' })];
+    const groups = groupSubscriptionsByRenewalDate(subs, today);
+    // July 1 and Aug 1 have both already passed relative to Aug 5, so it rolls to Sept 1.
+    expect(groups['2026-09-01']).toBeDefined();
+    expect(groups['2026-07-01']).toBeUndefined();
   });
 });

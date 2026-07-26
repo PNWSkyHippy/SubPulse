@@ -75,6 +75,50 @@ export function shouldFireReminder(sub: Subscription, today: Date = new Date()):
   return days >= 0 && days <= sub.reminderDaysBefore;
 }
 
+/**
+ * Builds a month calendar grid: an array of weeks, each an array of 7 cells
+ * (Sunday-first), where each cell is either a day-of-month number or null
+ * for the leading/trailing blanks outside the month.
+ */
+export function getMonthGrid(year: number, month: number): (number | null)[][] {
+  const firstWeekday = new Date(Date.UTC(year, month, 1)).getUTCDay(); // 0 = Sunday
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+
+  const weeks: (number | null)[][] = [];
+  let week: (number | null)[] = new Array(firstWeekday).fill(null);
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    week.push(day);
+    if (week.length === 7) {
+      weeks.push(week);
+      week = [];
+    }
+  }
+  if (week.length > 0) {
+    while (week.length < 7) week.push(null);
+    weeks.push(week);
+  }
+  return weeks;
+}
+
+/**
+ * Groups subscriptions by the ISO date of their next upcoming renewal.
+ * Only the immediate next occurrence per subscription is included (not
+ * further projected future cycles), so a subscription only appears under
+ * whichever single month its next charge actually falls in.
+ */
+export function groupSubscriptionsByRenewalDate(
+  subs: Subscription[],
+  today: Date = new Date()
+): Record<string, Subscription[]> {
+  const groups: Record<string, Subscription[]> = {};
+  for (const sub of subs) {
+    const dateKey = formatISODate(computeNextRenewalDate(sub.nextRenewalDate, sub.billingCycle, today));
+    if (!groups[dateKey]) groups[dateKey] = [];
+    groups[dateKey].push(sub);
+  }
+  return groups;
+}
 export function summarizeMonthlySpend(subs: Subscription[]): MonthlySpendSummary {
   const byCategory: Record<string, number> = {};
   const byCurrency: Record<string, number> = {};
