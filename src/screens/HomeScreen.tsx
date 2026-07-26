@@ -6,7 +6,7 @@ import SubscriptionCard from '../components/SubscriptionCard';
 import { summarizeMonthlySpend } from '../utils/dateHelpers';
 import { requestNotificationPermission } from '../utils/notifications';
 import { formatCurrency } from '../utils/currency';
-import { exportSubscriptionsToCSV } from '../utils/csvExport';
+import { exportSubscriptionsToCSV, pickAndParseSubscriptionsCSV } from '../utils/csvExport';
 import { Subscription } from '../types';
 
 type SortKey = 'renewal' | 'cost' | 'name' | 'category';
@@ -41,12 +41,13 @@ function sortSubscriptions(subs: Subscription[], sortKey: SortKey, direction: So
 }
 
 export default function HomeScreen({ navigation }: any) {
-  const { subscriptions, loading } = useSubscriptions();
+  const { subscriptions, loading, addSubscription } = useSubscriptions();
   const { signOut } = useAuth();
   const [sortKey, setSortKey] = useState<SortKey>('renewal');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [period, setPeriod] = useState<Period>('monthly');
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     requestNotificationPermission();
@@ -72,16 +73,56 @@ export default function HomeScreen({ navigation }: any) {
 
   const onExport = async () => {
     if (subscriptions.length === 0) {
-      Alert.alert('Nothing to export', 'Add a subscription first.');
+      Alert.alert('Nothing to back up', 'Add a subscription first.');
       return;
     }
     setExporting(true);
     try {
       await exportSubscriptionsToCSV(subscriptions);
     } catch (err: any) {
-      Alert.alert('Export failed', err.message ?? 'Please try again.');
+      Alert.alert('Backup failed', err.message ?? 'Please try again.');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const onImport = async () => {
+    setImporting(true);
+    try {
+      const result = await pickAndParseSubscriptionsCSV();
+      if (!result) return; // user cancelled the file picker
+
+      const { rows, errors } = result;
+      if (rows.length === 0) {
+        Alert.alert('Nothing to import', errors[0] ?? 'No valid rows found in that file.');
+        return;
+      }
+
+      const issueNote = errors.length > 0 ? `\n\n${errors.length} row(s) had issues and were adjusted or skipped.` : '';
+      Alert.alert(
+        'Restore subscriptions?',
+        `Found ${rows.length} subscription${rows.length === 1 ? '' : 's'} in that file.${issueNote}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Restore',
+            onPress: async () => {
+              try {
+                for (const row of rows) {
+                  await addSubscription(row);
+                }
+                Alert.alert('Restored', `Added ${rows.length} subscription${rows.length === 1 ? '' : 's'}.`);
+              } catch (err: any) {
+                Alert.alert('Restore incomplete', err.message ?? 'Some subscriptions may not have been added.');
+              }
+            },
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Import failed', err.message ?? 'Please try again.');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -142,7 +183,10 @@ export default function HomeScreen({ navigation }: any) {
             <Text style={styles.signOut}>Sign out</Text>
           </Pressable>
           <Pressable onPress={onExport} disabled={exporting}>
-            <Text style={styles.exportLink}>{exporting ? 'Exporting…' : 'Export CSV'}</Text>
+            <Text style={styles.exportLink}>{exporting ? 'Backing up…' : 'Backup (CSV)'}</Text>
+          </Pressable>
+          <Pressable onPress={onImport} disabled={importing}>
+            <Text style={styles.exportLink}>{importing ? 'Reading…' : 'Restore (CSV)'}</Text>
           </Pressable>
         </View>
       </View>

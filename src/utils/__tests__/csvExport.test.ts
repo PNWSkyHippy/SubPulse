@@ -1,4 +1,4 @@
-import { generateSubscriptionsCSV } from '../csv';
+import { generateSubscriptionsCSV, parseCSVText, parseSubscriptionsCSV } from '../csv';
 import { Subscription } from '../../types';
 
 function makeSub(overrides: Partial<Subscription>): Subscription {
@@ -43,5 +43,90 @@ describe('generateSubscriptionsCSV', () => {
     const csv = generateSubscriptionsCSV([makeSub({ category: undefined, notes: undefined })]);
     const dataLine = csv.split('\n')[1];
     expect(dataLine.endsWith(',,')).toBe(true);
+  });
+});
+
+describe('parseCSVText', () => {
+  test('parses simple comma-separated rows', () => {
+    const rows = parseCSVText('a,b,c\n1,2,3');
+    expect(rows).toEqual([
+      ['a', 'b', 'c'],
+      ['1', '2', '3'],
+    ]);
+  });
+
+  test('handles a quoted field containing a comma', () => {
+    const rows = parseCSVText('Name,Notes\nTest,"shared, cancel soon"');
+    expect(rows[1]).toEqual(['Test', 'shared, cancel soon']);
+  });
+
+  test('handles a quoted field containing escaped quotes', () => {
+    const rows = parseCSVText('Name,Notes\nTest,"the ""best"" plan"');
+    expect(rows[1]).toEqual(['Test', 'the "best" plan']);
+  });
+
+  test('handles a quoted field containing a real newline', () => {
+    const rows = parseCSVText('Name,Notes\nTest,"line one\nline two"\nSecond,fine');
+    expect(rows.length).toBe(3);
+    expect(rows[1]).toEqual(['Test', 'line one\nline two']);
+    expect(rows[2]).toEqual(['Second', 'fine']);
+  });
+
+  test('ignores trailing blank lines', () => {
+    const rows = parseCSVText('a,b\n1,2\n\n');
+    expect(rows.length).toBe(2);
+  });
+});
+
+describe('parseSubscriptionsCSV', () => {
+  test('round-trips a generated CSV back into equivalent subscription data', () => {
+    const original = [
+      makeSub({ name: 'Netflix', cost: 15.49, currency: 'USD', category: 'Streaming', notes: 'shared, family plan' }),
+      makeSub({ name: 'Spotify', cost: 11.99, currency: 'EUR', category: undefined, notes: undefined }),
+    ];
+    const csv = generateSubscriptionsCSV(original);
+    const { rows, errors } = parseSubscriptionsCSV(csv);
+
+    expect(errors).toEqual([]);
+    expect(rows.length).toBe(2);
+    expect(rows[0]).toMatchObject({ name: 'Netflix', cost: 15.49, currency: 'USD', category: 'Streaming', notes: 'shared, family plan' });
+    expect(rows[1]).toMatchObject({ name: 'Spotify', cost: 11.99, currency: 'EUR' });
+    expect(rows[1].category).toBeUndefined();
+  });
+
+  test('works with reordered columns (matches by header name, not position)', () => {
+    const csv = 'Category,Name,Cost\nStreaming,Netflix,15.49';
+    const { rows, errors } = parseSubscriptionsCSV(csv);
+    expect(errors).toEqual([]);
+    expect(rows[0]).toMatchObject({ name: 'Netflix', cost: 15.49, category: 'Streaming' });
+  });
+
+  test('skips a row with missing name and reports it', () => {
+    const csv = 'Name,Cost\n,9.99\nSpotify,11.99';
+    const { rows, errors } = parseSubscriptionsCSV(csv);
+    expect(rows.length).toBe(1);
+    expect(rows[0].name).toBe('Spotify');
+    expect(errors[0]).toContain('Row 2');
+  });
+
+  test('skips a row with invalid cost and reports it', () => {
+    const csv = 'Name,Cost\nNetflix,not-a-number';
+    const { rows, errors } = parseSubscriptionsCSV(csv);
+    expect(rows.length).toBe(0);
+    expect(errors[0]).toContain('invalid cost');
+  });
+
+  test('defaults an unknown billing cycle to monthly and reports it', () => {
+    const csv = 'Name,Cost,Billing Cycle\nNetflix,9.99,fortnightly';
+    const { rows, errors } = parseSubscriptionsCSV(csv);
+    expect(rows[0].billingCycle).toBe('monthly');
+    expect(errors[0]).toContain('unknown billing cycle');
+  });
+
+  test('errors when required columns are entirely missing', () => {
+    const csv = 'Foo,Bar\n1,2';
+    const { rows, errors } = parseSubscriptionsCSV(csv);
+    expect(rows).toEqual([]);
+    expect(errors[0]).toContain('must have at least');
   });
 });

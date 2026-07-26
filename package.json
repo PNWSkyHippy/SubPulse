@@ -16,6 +16,7 @@
     "@types/node": "^26.1.1",
     "expo": "~54.0.0",
     "expo-dev-client": "~6.0.21",
+    "expo-document-picker": "~14.0.8",
     "expo-file-system": "~19.0.23",
     "expo-notifications": "~0.32.17",
     "expo-sharing": "~14.0.8",
