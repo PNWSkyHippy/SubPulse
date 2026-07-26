@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Subscription } from '../types';
 import { computeNextRenewalDate, daysUntil, formatISODate } from '../utils/dateHelpers';
 import { formatCurrency } from '../utils/currency';
+import SubscriptionIcon from './SubscriptionIcon';
 
 export default function SubscriptionCard({
   sub,
@@ -20,7 +21,8 @@ export default function SubscriptionCard({
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
-      <View style={{ flex: 1 }}>
+      <SubscriptionIcon name={sub.name} size={40} />
+      <View style={{ flex: 1, marginLeft: 12 }}>
         <Text style={styles.name}>{sub.name}</Text>
         <Text style={styles.meta}>
           {sub.category ?? 'Uncategorized'} · {sub.billingCycle}

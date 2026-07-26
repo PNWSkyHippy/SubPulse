@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { getMonthGrid, groupSubscriptionsByRenewalDate, formatISODate } from '../utils/dateHelpers';
 import { formatCurrency } from '../utils/currency';
+import SubscriptionIcon from '../components/SubscriptionIcon';
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
@@ -101,7 +102,8 @@ export default function CalendarScreen({ navigation }: any) {
             style={styles.paymentRow}
             onPress={() => navigation.navigate('SubscriptionDetail', { id: sub.id })}
           >
-            <View>
+            <SubscriptionIcon name={sub.name} size={36} />
+            <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.paymentName}>{sub.name}</Text>
               <Text style={styles.paymentDate}>{dateKey}</Text>
             </View>
