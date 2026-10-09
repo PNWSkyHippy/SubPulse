@@ -11,6 +11,7 @@ import { exportSubscriptionsToCSV } from '../utils/csvExport';
 import { requestNotificationPermission } from '../utils/notifications';
 import { McpTokenRecord, watchMcpTokens } from '../utils/gateway';
 import { PRESETS } from '../theme/theme';
+import { LOCK_AFTER_OPTIONS, useSecurity } from '../context/SecurityContext';
 
 function NavRow({ icon, title, subtitle, right, onPress }: { icon: IconName; title: string; subtitle?: string; right?: React.ReactNode; onPress: () => void }) {
   const t = useTheme();
@@ -35,6 +36,7 @@ export default function SettingsScreen({ navigation }: any) {
   const { subscriptions, contacts, notes } = useSubscriptions();
   const { isPremium, baseCurrency, gatewayUrl, themeSettings } = usePreferences();
   const cf = useCashflow();
+  const security = useSecurity();
   const [tokens, setTokens] = useState<McpTokenRecord[]>([]);
   useEffect(() => watchMcpTokens(setTokens), []);
 
@@ -50,6 +52,15 @@ export default function SettingsScreen({ navigation }: any) {
           <Button compact kind="danger" title="Sign out" onPress={signOut} />
         </Row>
       </Card>
+
+      <SectionHeader title="Security" />
+      <NavRow
+        icon="shield-key-outline"
+        title="App lock & two-step"
+        subtitle={security.settings.mode === 'off' ? 'Lock is off — anyone with your phone can open SubPulse' : `${security.settings.mode === 'biometric' ? 'Biometric' : 'Password'} lock · ${LOCK_AFTER_OPTIONS.find((o) => o.sec === security.settings.lockAfterSec)?.label.toLowerCase()}`}
+        right={<Badge text={security.settings.mode === 'off' ? 'Off' : 'On'} tone={security.settings.mode === 'off' ? 'warn' : 'ok'} />}
+        onPress={() => navigation.navigate('Security')}
+      />
 
       <SectionHeader title="System matrix" />
       <NavRow

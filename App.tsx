@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
 import { HankenGrotesk_600SemiBold, HankenGrotesk_700Bold } from '@expo-google-fonts/hanken-grotesk';
@@ -12,6 +13,9 @@ import { Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from '@expo-goog
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SubscriptionsProvider, useSubscriptions } from './src/context/SubscriptionsContext';
 import { PreferencesProvider, usePreferences, useTheme } from './src/context/PreferencesContext';
+import { SecurityProvider, useSecurity } from './src/context/SecurityContext';
+import LockScreen, { PrivacyCover } from './src/screens/LockScreen';
+import SecurityScreen from './src/screens/SecurityScreen';
 import { Icon, IconName, Loading } from './src/ui/kit';
 import { RootStackParamList, TabParamList } from './src/navigation/types';
 import { ACTION_MARK_PAID, ACTION_SNOOZE, requestNotificationPermission, snoozeItem } from './src/utils/notifications';
@@ -116,9 +120,10 @@ function NotificationActions() {
 function RootNavigator() {
   const { user, initializing } = useAuth();
   const { ready } = usePreferences();
+  const security = useSecurity();
   const t = useTheme();
 
-  if (initializing || !ready) return <Loading />;
+  if (initializing || !ready || !security.ready) return <Loading />;
 
   const navTheme = {
     ...DarkTheme,
@@ -143,6 +148,7 @@ function RootNavigator() {
             <Stack.Screen name="Calendar" component={CalendarScreen} />
             <Stack.Screen name="Balances" component={BalancesScreen} />
             <Stack.Screen name="Gateway" component={GatewayScreen} />
+            <Stack.Screen name="Security" component={SecurityScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} options={{ presentation: 'modal' }} />
           </Stack.Group>
         ) : (
@@ -152,6 +158,13 @@ function RootNavigator() {
           </Stack.Group>
         )}
       </Stack.Navigator>
+      {/* The app stays mounted underneath so state survives locking. */}
+      {security.locked ? (
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+          <LockScreen />
+        </View>
+      ) : null}
+      {security.obscured && !security.locked ? <PrivacyCover /> : null}
     </NavigationContainer>
   );
 }
@@ -169,10 +182,12 @@ export default function App() {
     <SafeAreaProvider>
       <AuthProvider>
         <PreferencesProvider>
-          <SubscriptionsProvider>
-            <StatusBar style="light" />
-            <RootNavigator />
-          </SubscriptionsProvider>
+          <SecurityProvider>
+            <SubscriptionsProvider>
+              <StatusBar style="light" />
+              <RootNavigator />
+            </SubscriptionsProvider>
+          </SecurityProvider>
         </PreferencesProvider>
       </AuthProvider>
     </SafeAreaProvider>

@@ -52,6 +52,12 @@
         {
           "contactsPermission": "SubPulse imports contacts so you can assign payees and split bills."
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "SubPulse uses Face ID to unlock the app."
+        }
       ]
     ],
     "scheme": "subpulse",

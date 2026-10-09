@@ -94,3 +94,32 @@ Dockerfile                   gateway container (Cloud Run)
 ## Data migration from SubscriptionTracker
 
 Same Firestore collection (`subscriptions`) and field names; every new field is optional, so existing data loads as auto-pay subscriptions. The app id changed to `com.pnwskyhippy.subpulse`, so it installs alongside the old app.
+
+## Security: app lock & two-step verification
+
+**App lock** (Settings → App lock & two-step) is per device: Off, Biometric
+(fingerprint/face with phone PIN fallback) or Password (account password, plus
+authenticator code when two-step is on). It locks on every app start and after
+the chosen time away, signs out after too many wrong passwords, and the privacy
+screen hides SubPulse in Recents and blocks screenshots. Biometrics and the
+privacy screen need a build that includes `expo-local-authentication` and
+`expo-screen-capture` (`eas build --profile development --platform android`);
+older builds fall back to the password tier.
+
+**Two-step verification** uses Firebase Auth's built-in TOTP multi-factor
+(authenticator apps), enforced by Firebase at sign-in on every device. One-time
+project setup:
+
+1. Firebase console → Authentication → Settings → **Upgrade to Identity Platform**
+   (free for small apps; Google may ask to attach a billing account).
+2. Enable TOTP for the project (Google Cloud Shell or any machine with `gcloud`):
+
+   ```bash
+   PROJECT=subscriptiontracker-f9fbc
+   curl -X PATCH "https://identitytoolkit.googleapis.com/admin/v2/projects/$PROJECT/config?updateMask=mfa" \
+     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+     -H "X-Goog-User-Project: $PROJECT" -H "Content-Type: application/json" \
+     -d '{"mfa":{"providerConfigs":[{"state":"ENABLED","totpProviderConfig":{"adjacentIntervals":5}}]}}'
+   ```
+3. In the app: verify your email when prompted, then Settings → App lock &
+   two-step → Set up authenticator app.

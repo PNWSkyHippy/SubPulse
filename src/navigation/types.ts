@@ -13,6 +13,7 @@ export type RootStackParamList = {
   Calendar: undefined;
   Balances: undefined;
   Gateway: undefined;
+  Security: undefined;
   Login: undefined;
   Signup: undefined;
 };

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/PreferencesContext';
+import { useCodePrompt } from '../components/CodePrompt';
+import { friendlyMfaError, isMfaRequiredError, resolverFor, resolveWithTotp } from '../utils/mfa';
 import { Body, Button, Card, Field, Heading, Icon, Input, Label, Screen } from '../ui/kit';
 import { friendlyError } from '../utils/errors';
 
@@ -12,13 +14,28 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sendingReset, setSendingReset] = useState(false);
+  const [codePrompt, askCode] = useCodePrompt();
 
   const onSubmit = async () => {
     setSubmitting(true);
     try {
       await signIn(email.trim(), password);
     } catch (err: any) {
-      Alert.alert('Sign in failed', friendlyError(err));
+      if (isMfaRequiredError(err)) {
+        // Password was right; Firebase wants the authenticator code before finishing sign-in.
+        const resolver = resolverFor(err);
+        let code = await askCode();
+        while (code) {
+          try {
+            await resolveWithTotp(resolver, code);
+            return;
+          } catch (e: any) {
+            code = await askCode(friendlyMfaError(e));
+          }
+        }
+      } else {
+        Alert.alert('Sign in failed', friendlyMfaError(err));
+      }
     } finally {
       setSubmitting(false);
     }
@@ -40,6 +57,7 @@ export default function LoginScreen({ navigation }: any) {
 
   return (
     <Screen>
+      {codePrompt}
       <View style={{ marginTop: 48, alignItems: 'center', gap: 8 }}>
         <View style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="pulse" size={32} color={t.colors.onAccent} />
