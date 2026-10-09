@@ -3,6 +3,7 @@ import { Alert, Pressable, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/PreferencesContext';
 import { Body, Button, Card, Field, Heading, Icon, Input, Label, Screen } from '../ui/kit';
+import { friendlyError } from '../utils/errors';
 
 export default function LoginScreen({ navigation }: any) {
   const t = useTheme();
@@ -17,7 +18,7 @@ export default function LoginScreen({ navigation }: any) {
     try {
       await signIn(email.trim(), password);
     } catch (err: any) {
-      Alert.alert('Sign in failed', err.message ?? 'Please check your email and password.');
+      Alert.alert('Sign in failed', friendlyError(err));
     } finally {
       setSubmitting(false);
     }
@@ -31,7 +32,7 @@ export default function LoginScreen({ navigation }: any) {
       await resetPassword(trimmedEmail);
       Alert.alert('Check your email', `A password reset link has been sent to ${trimmedEmail}.`);
     } catch (err: any) {
-      Alert.alert('Could not send reset email', err.message ?? 'Please try again.');
+      Alert.alert('Could not send reset email', friendlyError(err));
     } finally {
       setSendingReset(false);
     }

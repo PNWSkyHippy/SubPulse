@@ -25,6 +25,7 @@ import { exportSubscriptionsToCSV, pickAndParseSubscriptionsCSV } from '../utils
 import { CSVImportResult, parseSubscriptionsCSV } from '../utils/csv';
 import { maybeShowInterstitialAfterSave } from '../utils/ad';
 import { formatISODate, todayLocal } from '../utils/dateHelpers';
+import { friendlyError } from '../utils/errors';
 
 type Mode = 'known' | 'custom' | 'csv';
 
@@ -169,7 +170,7 @@ function CsvHub({ count, onDone }: { count: number; onDone: () => void }) {
       setText('');
       onDone();
     } catch (e: any) {
-      Alert.alert('Import stopped', `${added} added before an error: ${e?.message ?? 'unknown error'}`);
+      Alert.alert('Import stopped', `${added} added before an error: ${friendlyError(e)}`);
     } finally {
       setBusy(false);
     }
@@ -180,7 +181,7 @@ function CsvHub({ count, onDone }: { count: number; onDone: () => void }) {
       const res = await pickAndParseSubscriptionsCSV();
       if (res) setResult(res);
     } catch (e: any) {
-      Alert.alert('Could not read file', e?.message ?? 'Try another file.');
+      Alert.alert('Could not read file', friendlyError(e));
     }
   };
 
@@ -189,7 +190,7 @@ function CsvHub({ count, onDone }: { count: number; onDone: () => void }) {
     try {
       await exportSubscriptionsToCSV(subscriptions);
     } catch (e: any) {
-      Alert.alert('Export failed', e?.message ?? 'Try again.');
+      Alert.alert('Export failed', friendlyError(e));
     }
   };
 

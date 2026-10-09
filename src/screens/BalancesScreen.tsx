@@ -3,6 +3,7 @@ import { Alert, Pressable, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { usePreferences, useTheme } from '../context/PreferencesContext';
+import { attempt, friendlyError } from '../utils/errors';
 import { useCashflow } from '../hooks/useCashflow';
 import CurrencyPicker from '../components/CurrencyPicker';
 import { Badge, Body, Button, Card, Field, Heading, Icon, Input, Label, Metric, Row, Screen, SectionHeader } from '../ui/kit';
@@ -29,7 +30,7 @@ export default function BalancesScreen({ navigation }: any) {
         Alert.alert('Accounts linked', `${r.updated} account balance${r.updated === 1 ? '' : 's'} synced.`);
       }
     } catch (e: any) {
-      Alert.alert('Stripe link unavailable', e?.message ?? 'Try again.');
+      Alert.alert('Stripe link unavailable', friendlyError(e));
     } finally {
       setBusy(null);
     }
@@ -41,7 +42,7 @@ export default function BalancesScreen({ navigation }: any) {
       const r = await refreshStripeBalances(gatewayUrl);
       Alert.alert('Synced', `${r.updated} balance${r.updated === 1 ? '' : 's'} refreshed.`);
     } catch (e: any) {
-      Alert.alert('Refresh failed', e?.message ?? 'Try again.');
+      Alert.alert('Refresh failed', friendlyError(e));
     } finally {
       setBusy(null);
     }
@@ -50,7 +51,8 @@ export default function BalancesScreen({ navigation }: any) {
   const addManual = async () => {
     const v = parseFloat(amount.replace(/,/g, ''));
     if (!name.trim() || isNaN(v)) return Alert.alert('Missing info', 'Enter an account name and balance.');
-    await upsertManualBalance({ name: name.trim(), available: v, currency });
+    const ok = await attempt('Could not save balance', () => upsertManualBalance({ name: name.trim(), available: v, currency }));
+    if (!ok) return;
     setName('');
     setAmount('');
   };
@@ -97,7 +99,7 @@ export default function BalancesScreen({ navigation }: any) {
                 onPress={() =>
                   Alert.alert('Remove account?', b.name, [
                     { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: () => deleteBalance(b.id) },
+                    { text: 'Remove', style: 'destructive', onPress: () => attempt('Could not remove account', () => deleteBalance(b.id)) },
                   ])
                 }
               >

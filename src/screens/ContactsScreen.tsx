@@ -5,6 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { useTheme } from '../context/PreferencesContext';
+import { attempt, friendlyError } from '../utils/errors';
 import { Avatar, Badge, Body, Button, Card, Field, Heading, Icon, Input, Row, Screen, SectionHeader } from '../ui/kit';
 import { parseVCards } from '../utils/vcard';
 
@@ -48,7 +49,7 @@ export default function ContactsScreen({ navigation }: any) {
       const added = await importContacts(rows);
       Alert.alert('Contacts imported', `${added} new contact${added === 1 ? '' : 's'} added (${rows.length - added} already present).`);
     } catch (e: any) {
-      Alert.alert('Import failed', e?.message ?? 'Try again.');
+      Alert.alert('Import failed', friendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -65,7 +66,7 @@ export default function ContactsScreen({ navigation }: any) {
       const added = await importContacts(parsed.map((p) => ({ ...p, source: 'vcard' as const })));
       Alert.alert('Contacts imported', `${added} new of ${parsed.length} in file.`);
     } catch (e: any) {
-      Alert.alert('Import failed', e?.message ?? 'Try another file.');
+      Alert.alert('Import failed', friendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -73,7 +74,8 @@ export default function ContactsScreen({ navigation }: any) {
 
   const addManual = async () => {
     if (!name.trim()) return Alert.alert('Name required');
-    await addContact({ name: name.trim(), phone: phone.trim() || undefined, email: email.trim() || undefined, source: 'manual' });
+    const ok = await attempt('Could not add contact', () => addContact({ name: name.trim(), phone: phone.trim() || undefined, email: email.trim() || undefined, source: 'manual' }));
+    if (!ok) return;
     setName('');
     setPhone('');
     setEmail('');
@@ -113,7 +115,7 @@ export default function ContactsScreen({ navigation }: any) {
               onPress={() =>
                 Alert.alert('Remove contact?', c.name, [
                   { text: 'Cancel', style: 'cancel' },
-                  { text: 'Remove', style: 'destructive', onPress: () => deleteContact(c.id) },
+                  { text: 'Remove', style: 'destructive', onPress: () => attempt('Could not remove contact', () => deleteContact(c.id)) },
                 ])
               }
             >

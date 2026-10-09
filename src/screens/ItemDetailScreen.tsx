@@ -37,6 +37,7 @@ import { catalogFor } from '../utils/insights';
 import { formatNumber } from '../utils/calculator';
 import { snoozeItem } from '../utils/notifications';
 import { Subscription } from '../types';
+import { friendlyError } from '../utils/errors';
 
 export default function ItemDetailScreen({ route, navigation }: any) {
   const { subscriptions } = useSubscriptions();
@@ -78,7 +79,7 @@ function ItemDetailBody({ sub, navigation }: { sub: Subscription; navigation: an
             await recordPayment(sub.id);
             maybeShowInterstitialAfterSave(isPremium);
           } catch (e: any) {
-            Alert.alert('Could not record payment', e?.message ?? 'Try again.');
+            Alert.alert('Could not record payment', friendlyError(e));
           }
         },
       },

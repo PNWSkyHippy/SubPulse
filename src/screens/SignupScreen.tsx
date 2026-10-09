@@ -3,6 +3,7 @@ import { Alert, Pressable } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/PreferencesContext';
 import { Body, Button, Card, Field, Heading, Input, Screen } from '../ui/kit';
+import { friendlyError } from '../utils/errors';
 
 export default function SignupScreen({ navigation }: any) {
   const t = useTheme();
@@ -17,7 +18,7 @@ export default function SignupScreen({ navigation }: any) {
     try {
       await signUp(email.trim(), password);
     } catch (err: any) {
-      Alert.alert('Sign up failed', err.message ?? 'Something went wrong.');
+      Alert.alert('Sign up failed', friendlyError(err));
     } finally {
       setSubmitting(false);
     }

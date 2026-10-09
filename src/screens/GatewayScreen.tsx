@@ -16,6 +16,7 @@ import {
   watchMcpActivity,
   watchMcpTokens,
 } from '../utils/gateway';
+import { attempt, friendlyError } from '../utils/errors';
 
 export default function GatewayScreen({ navigation }: any) {
   const t = useTheme();
@@ -45,7 +46,7 @@ export default function GatewayScreen({ navigation }: any) {
     try {
       setNewToken(await createMcpToken(label, scopes));
     } catch (e: any) {
-      Alert.alert('Could not create token', e?.message ?? 'Try again.');
+      Alert.alert('Could not create token', friendlyError(e));
     }
   };
 
@@ -139,7 +140,7 @@ export default function GatewayScreen({ navigation }: any) {
               onPress={() =>
                 Alert.alert('Revoke token?', `${tk.label} will lose access immediately.`, [
                   { text: 'Cancel', style: 'cancel' },
-                  { text: 'Revoke', style: 'destructive', onPress: () => revokeMcpToken(tk.id) },
+                  { text: 'Revoke', style: 'destructive', onPress: () => attempt('Could not revoke token', () => revokeMcpToken(tk.id)) },
                 ])
               }
             />

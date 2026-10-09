@@ -4,6 +4,7 @@ import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases
 import { usePreferences, useTheme } from '../context/PreferencesContext';
 import { Badge, Body, Button, Card, Heading, Icon, Label, Metric, Row, Screen } from '../ui/kit';
 import { getCurrentOffering, purchasePackage, purchasesConfigured, restorePurchases, PREMIUM_ENTITLEMENT_ID } from '../utils/purchases';
+import { friendlyError } from '../utils/errors';
 
 const PERKS = ['100% ad-free — no banners or interstitials', 'Supports ongoing development', 'One purchase covers all your devices (same account)'];
 
@@ -27,7 +28,7 @@ export default function PaywallScreen({ navigation }: any) {
         navigation.goBack();
       }
     } catch (e: any) {
-      if (!e?.userCancelled) Alert.alert('Purchase failed', e?.message ?? 'Try again.');
+      if (!e?.userCancelled) Alert.alert('Purchase failed', friendlyError(e));
     } finally {
       setBusy(null);
     }
@@ -40,7 +41,7 @@ export default function PaywallScreen({ navigation }: any) {
       await refreshPremium();
       Alert.alert('Restore complete', 'Any previous purchase has been restored.');
     } catch (e: any) {
-      Alert.alert('Restore failed', e?.message ?? 'Try again.');
+      Alert.alert('Restore failed', friendlyError(e));
     } finally {
       setBusy(null);
     }

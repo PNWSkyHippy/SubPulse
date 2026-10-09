@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Pressable } from 'react-native';
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { useTheme } from '../context/PreferencesContext';
+import { attempt } from '../utils/errors';
 import { Body, Button, Chip, ChipRow, Field, Heading, Icon, Input, Label, Row, Screen } from '../ui/kit';
 import { exportToKeep, sendToGemini } from '../utils/noteExport';
 
@@ -20,9 +21,8 @@ export default function NoteEditorScreen({ navigation, route }: any) {
   const save = async () => {
     if (!title.trim() && !body.trim()) return Alert.alert('Empty note', 'Write something first.');
     const v = values();
-    if (existing) await updateNote(existing.id, v);
-    else await addNote(v);
-    navigation.goBack();
+    const ok = await attempt('Could not save note', () => (existing ? updateNote(existing.id, v) : addNote(v)));
+    if (ok) navigation.goBack();
   };
 
   return (
@@ -58,7 +58,7 @@ export default function NoteEditorScreen({ navigation, route }: any) {
           onPress={() =>
             Alert.alert('Delete note?', existing.title, [
               { text: 'Cancel', style: 'cancel' },
-              { text: 'Delete', style: 'destructive', onPress: async () => { await deleteNote(existing.id); navigation.goBack(); } },
+              { text: 'Delete', style: 'destructive', onPress: async () => { if (await attempt('Could not delete note', () => deleteNote(existing.id))) navigation.goBack(); } },
             ])
           }
         />

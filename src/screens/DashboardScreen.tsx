@@ -28,6 +28,7 @@ import { escalationLabel, kindOf } from '../utils/billing';
 import { snoozeItem } from '../utils/notifications';
 import { maybeShowInterstitialAfterSave } from '../utils/ad';
 import { ItemKind } from '../types';
+import { friendlyError } from '../utils/errors';
 
 type Filter = 'all' | 'subscriptions' | 'housing' | 'utilities' | 'one-time' | 'other';
 const FILTERS: { key: Filter; label: string; kinds: ItemKind[] | null }[] = [
@@ -70,7 +71,7 @@ export default function DashboardScreen({ navigation }: any) {
             await recordPayment(id);
             maybeShowInterstitialAfterSave(isPremium);
           } catch (e: any) {
-            Alert.alert('Could not record payment', e?.message ?? 'Try again.');
+            Alert.alert('Could not record payment', friendlyError(e));
           }
         },
       },
