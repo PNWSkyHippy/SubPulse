@@ -1,9 +1,11 @@
 /**
  * Ads for the free tier (AdMob via react-native-google-mobile-ads).
  *
- * - Pinned to react-native-google-mobile-ads 16.5.0. 17.0.0's Kotlin passes a
- *   nullable String to Promise.reject(code: String, ...) and fails to compile
- *   against React Native 0.81 (Expo SDK 54); 17.1+ requires RN >= 0.86.
+ * - Pinned to react-native-google-mobile-ads 16.0.0 (bundles Google Mobile Ads
+ *   SDK 24.6.0, compiled with Kotlin 2.1 like Expo SDK 54). Newer versions break
+ *   the EAS Android build: 16.1+ bundle SDK 25.x built with Kotlin 2.2/2.3
+ *   ("incompatible version of Kotlin"), 17.0.0 passes a nullable String to
+ *   Promise.reject, and 17.1+ requires React Native >= 0.86.
  * - The native module only exists in a development/production build. In Expo
  *   Go the require() below fails, and every function here quietly no-ops, so
  *   the rest of the app keeps working.

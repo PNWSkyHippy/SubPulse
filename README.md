@@ -71,7 +71,7 @@ See [server/README.md](server/README.md). Short version: deploy to Cloud Run in 
 
 1. AdMob: app ids and the interstitial unit are in `src/utils/ad.ts` / `app.json`. Development builds use Google's **test** ads automatically. Optional banner unit ids go in `.env`.
 2. RevenueCat: create a `premium` entitlement with a lifetime (and/or monthly) product, then set `EXPO_PUBLIC_REVENUECAT_*_KEY`. Until then everyone is on the free tier.
-3. `react-native-google-mobile-ads` is pinned to **16.5.0**: 17.0.0 doesn't compile against React Native 0.81 (Expo SDK 54) and 17.1+ needs RN 0.86.
+3. `react-native-google-mobile-ads` is pinned to **16.0.0** (Google Ads SDK 24.6.0, Kotlin 2.1). Newer versions don't compile on Expo SDK 54 — see the note in `src/utils/ad.ts` before upgrading.
 4. Install packages with `npm ci`, not `npm install`: npm 11 (Node 24) rewrites `package-lock.json` in a way EAS's npm 10 rejects.
 
 ## Project structure
