@@ -47,6 +47,8 @@ interface SecurityValue {
   unlock: () => void;
   lockNow: () => void;
   biometricAvailable: boolean;
+  /** False when this app build doesn't include the biometric module (needs a rebuild). */
+  biometricInBuild: boolean;
   biometricLabel: string;
   failedPasswordAttempts: number;
   registerFailedPassword: () => Promise<void>;
@@ -62,6 +64,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
   const [locked, setLocked] = useState(false);
   const [obscured, setObscured] = useState(false);
   const [biometricAvailable, setBioAvail] = useState(false);
+  const [biometricInBuild, setBioInBuild] = useState(false);
   const [biometricLabel, setBioLabel] = useState('Biometrics');
   const [failedPasswordAttempts, setFailed] = useState(0);
   const backgroundedAt = useRef<number | null>(null);
@@ -83,6 +86,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
       try {
         const LocalAuthentication = localAuth();
         if (!LocalAuthentication) throw new Error('local auth not in this build');
+        setBioInBuild(true);
         const [hw, enrolled, types] = await Promise.all([
           LocalAuthentication.hasHardwareAsync(),
           LocalAuthentication.isEnrolledAsync(),
@@ -168,6 +172,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
         unlock,
         lockNow,
         biometricAvailable,
+        biometricInBuild,
         biometricLabel,
         failedPasswordAttempts,
         registerFailedPassword,

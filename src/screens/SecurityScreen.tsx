@@ -12,7 +12,7 @@ import { disableTotp, finishTotpEnrollment, friendlyMfaError, hasTotp, PendingEn
 export default function SecurityScreen({ navigation }: any) {
   const t = useTheme();
   const { user } = useAuth();
-  const { settings, update, biometricAvailable, biometricLabel, lockNow } = useSecurity();
+  const { settings, update, biometricAvailable, biometricInBuild, biometricLabel, lockNow } = useSecurity();
   const [codePrompt, askCode] = useCodePrompt();
   const [twoStep, setTwoStep] = useState(hasTotp(user));
   const [pending, setPending] = useState<PendingEnrollment | null>(null);
@@ -23,6 +23,7 @@ export default function SecurityScreen({ navigation }: any) {
 
   const setMode = async (mode: LockMode) => {
     if (mode === 'biometric') {
+      if (!biometricInBuild) return Alert.alert('Needs an app update', 'This installed build of SubPulse was made before fingerprint unlock was added. Rebuild the app (eas build) to turn it on — your phone setup is fine. The password lock works now.');
       if (!biometricAvailable) return Alert.alert('Not available', 'Set up a fingerprint or face unlock in your phone settings first, or use the password tier.');
       if (!(await promptBiometric('Confirm to turn on biometric lock'))) return;
     }
@@ -109,7 +110,11 @@ export default function SecurityScreen({ navigation }: any) {
               ? 'Your SubPulse account password (and authenticator code if two-step is on). Strongest option.'
               : 'Anyone with your unlocked phone can open SubPulse.'}
         </Body>
-        {!biometricAvailable ? <Body small style={{ color: t.colors.warning, marginTop: 4 }}>No fingerprint/face set up on this phone — biometric tier unavailable.</Body> : null}
+        {!biometricInBuild ? (
+          <Body small style={{ color: t.colors.warning, marginTop: 4 }}>Fingerprint unlock needs a newer build of the app (rebuild with eas build). Password lock works now.</Body>
+        ) : !biometricAvailable ? (
+          <Body small style={{ color: t.colors.warning, marginTop: 4 }}>No fingerprint/face set up on this phone — biometric tier unavailable.</Body>
+        ) : null}
 
         {settings.mode !== 'off' ? (
           <>
