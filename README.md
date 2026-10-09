@@ -1,102 +1,81 @@
-# Subscription Tracker
+# SubPulse
 
-Track recurring subscriptions, see total monthly spend, and get a reminder
-before each renewal. One codebase (Expo / React Native + TypeScript) ships
-to both Android and iOS. Data syncs across devices via Firebase.
+A supercharged subscription and recurring-expense tracker (the v2 of
+SubscriptionTracker), built with Expo / React Native + TypeScript for Android
+and iOS, with Firebase sync and an **MCP gateway** so AI agents can help manage
+your bills.
 
-## What's already built and verified
+Design: the Stitch "SubPulse" design system (obsidian canvas, electric-mint
+accent, Hanken Grotesk + Geist), see `src/theme/theme.ts`.
 
-- Sign up / sign in (Firebase Auth, email+password)
-- Add / view / edit / delete subscriptions, synced live via Firestore
-- Monthly spend total, normalized across weekly/monthly/yearly billing cycles
-- Local push reminder N days before each renewal (`expo-notifications`)
-- Firestore security rules so each user only ever sees their own data
+## Features
 
-**Already tested in this environment (not just written — actually run):**
-- `npm test` → 14/14 unit tests passing, covering renewal-date rollover
-  (including stale/past dates), monthly-cost normalization across billing
-  cycles, and the reminder-firing window logic — the parts of a subscription
-  tracker that are easy to get subtly wrong.
-- `npx tsc --noEmit` → clean, whole project type-checks with no errors.
+| Area | What's in it | Where |
+|---|---|---|
+| Everything recurring | Subscriptions, leases/rent, utilities, magazines, insurance, loans, memberships, one-time fees. Weekly → yearly + one-time cycles, month-end-safe dates | `src/types`, `src/utils/billing.ts` |
+| Known services | 78-entry catalog with typical US list prices + plans, one-tap add | `src/data/catalog.ts`, Add → Known App |
+| Due dates, reminders, escalation | Auto-pay items roll forward; manual-pay items stay due until paid, then escalate (default day 1/3/7) with high-priority notifications and **Mark paid / Remind tomorrow** buttons | `src/utils/notifications.ts` |
+| Payments | Record payments (settles one cycle), history per item, overdue amounts with missed cycles | Item detail |
+| Balances | Stripe Financial Connections (read-only balances) via the gateway, or manual balances; 30-day runway | Settings → Stripe & balances |
+| Savings optimizer | Duplicates, bundle double-pays (Apple One + Apple Music…), overlapping services, annual-plan switch (exact from your prices, or list-price), promotions/sales feed, compound projection | `src/utils/insights.ts`, Optimizer tab |
+| CSV | Import (file or paste, header-mapped, error report) and export everything | Add → CSV Hub |
+| Contacts | Import from the phone (includes Google-synced contacts) or a Google Contacts .vcf; payees and bill splitting | Settings → Contacts |
+| Calculator | Samsung One UI–style calculator (smart brackets, %, ±, history, live preview) with "set as amount" and "split" | `src/utils/calculator.ts` |
+| Notes | Notes attached to bills, tags, export to Google Keep and send to Gemini (Android share intents) | `src/utils/noteExport.ts` |
+| Multi-currency | 15 currencies, live rates (open.er-api.com), base-currency totals and converter | Settings → Currency |
+| Themes | 4 presets, accent, depth and corner-radius customizer | Settings → Theme |
+| Monetization | Free tier with AdMob (interstitial every 4 saves, banner slot); Pro = ad-free via RevenueCat | `src/utils/ad.ts`, `src/utils/purchases.ts` |
+| Agent-friendly | MCP gateway with per-agent scoped tokens, activity log | `server/`, Settings → Agentic MCP gateway |
 
-What I *can't* test in this sandbox: the actual on-device UI (no phone
-emulator here). That needs the Expo Go step below, which takes a few minutes
-on your end.
+## Verified here
 
-## 1. One-time setup
+- `npm test` — **112 tests** (billing/escalation, month-end dates, local-day handling, savings optimizer, calculator, CSV, vCard, forex, icons)
+- `npx tsc --noEmit` — clean
+- `npx expo export --platform android` — full Android JS bundle builds
+- `cd server && npm test` — **12 end-to-end MCP tests** with the official MCP client, in 3 time zones
+- AdMob plugin verified with `expo prebuild` (writes the app id into AndroidManifest)
 
-1. Install [Node.js 18+](https://nodejs.org) if you don't have it.
-2. `npm install -g eas-cli` (only needed later, for store builds).
-3. Install **Expo Go** on your phone (App Store / Play Store) — this lets
-   you run and test the real app on your real phone during development,
-   with no build step and no developer account needed yet.
-4. Create a free [Firebase project](https://console.firebase.google.com):
-   - Enable **Authentication → Email/Password**.
-   - Create a **Firestore** database (start in production mode).
-   - Paste the `firestore.rules` file's contents into Firestore's Rules tab.
-   - Project settings → General → "Your apps" → add a Web app → copy the
-     config values into a `.env` file at the project root:
-     ```
-     EXPO_PUBLIC_FIREBASE_API_KEY=...
-     EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN=...
-     EXPO_PUBLIC_FIREBASE_PROJECT_ID=...
-     EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-     EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-     EXPO_PUBLIC_FIREBASE_APP_ID=...
-     ```
+Not verifiable in the cloud workspace: on-device UI, real notifications, real Stripe/RevenueCat/AdMob traffic.
 
-## 2. Run it on your phone
+## Run it
 
 ```bash
 npm install
-npx expo start
-```
-Scan the QR code with Expo Go (Android) or the Camera app (iOS). Sign up,
-add a subscription with a renewal date a few days out, and confirm the
-reminder notification arrives.
-
-## 3. Run the tests yourself
-
-```bash
-npm test          # unit tests for renewal/cost/reminder logic
-npm run typecheck # full TypeScript check
+cp .env.example .env      # fill in Firebase web config
+npx expo start            # scan with Expo Go
 ```
 
-## 4. Publishing — what's real about this step
+**Expo Go** runs everything except real ads and purchases (a "Remove ads" card shows instead). For those, make a development build: `npx expo run:android` or `eas build --profile development`.
 
-I can't create your developer accounts, pay their fees, or click submit —
-those require your identity and payment info. Here's exactly what's left,
-in order:
+Firestore rules (per-user isolation for every collection): `firebase deploy --only firestore:rules`.
 
-1. **Google Play**: [Play Console](https://play.google.com/console) signup,
-   $25 one-time fee, ~1 day identity verification.
-2. **Apple**: [Apple Developer Program](https://developer.apple.com/programs/)
-   signup, $99/year, identity verification (can take a few days).
-3. Once you have accounts, run `eas build --platform android` and
-   `eas build --platform ios` (needs `eas login` and `eas build:configure`
-   first) — this produces the signed `.aab` (Android) and `.ipa` (iOS)
-   files the stores require.
-4. `eas submit` can push those builds directly to Play Console / App Store
-   Connect once the accounts exist.
-5. Each store then does its own review (Google: hours to ~1 day typically;
-   Apple: often 1–3 days) before the app goes live.
+### Gateway (MCP + Stripe)
 
-I'm glad to walk through steps 3–4 with you interactively once you have
-the accounts from steps 1–2 — those two I genuinely cannot do for you.
+See [server/README.md](server/README.md). Short version: deploy to Cloud Run in the same Google project as Firebase, paste the URL into **Settings → Agentic MCP gateway**, generate a token, and paste the generated `claude mcp add …` command into Claude Code (or the JSON into Gemini CLI / other clients).
+
+### Monetization setup
+
+1. AdMob: app ids and the interstitial unit are in `src/utils/ad.ts` / `app.json`. Development builds use Google's **test** ads automatically. Optional banner unit ids go in `.env`.
+2. RevenueCat: create a `premium` entitlement with a lifetime (and/or monthly) product, then set `EXPO_PUBLIC_REVENUECAT_*_KEY`. Until then everyone is on the free tier.
+3. `react-native-google-mobile-ads` is pinned to **17.0.0**: 17.1+ needs React Native 0.86, newer than Expo SDK 54.
 
 ## Project structure
 
 ```
-App.tsx                          navigation + auth-gated routing
-src/
-  firebaseConfig.ts               Firebase init (reads .env)
-  context/AuthContext.tsx         sign in/up/out, auth state
-  context/SubscriptionsContext.tsx Firestore CRUD + live sync + reminders
-  screens/                        Login, Signup, Home, Add, Detail
-  components/SubscriptionCard.tsx
-  utils/dateHelpers.ts            renewal-date math, cost normalization
-  utils/notifications.ts          local reminder scheduling
-  utils/__tests__/                unit tests (run with `npm test`)
-firestore.rules                   per-user data isolation
-app.json                          Expo/store config (bundle IDs etc.)
+App.tsx                      providers, fonts, tabs + stack, notification actions
+src/types/                   data model (backwards compatible with v1 documents)
+src/data/catalog.ts          known services + list prices
+src/utils/                   billing, dates, savings, CSV, calculator, forex, vCard,
+                             notifications, ads, purchases, gateway client, note export
+src/context/                 Auth, Preferences (theme/currency/premium), data (Firestore)
+src/ui/kit.tsx               design-system components
+src/components/              ItemCard, ItemForm, Calculator, AdBanner, pickers
+src/screens/                 Dashboard, Add & CSV, Optimizer, Inspect, Settings, ItemDetail, …
+server/                      MCP + Stripe gateway (Node, shares src/ logic)
+firestore.rules              security rules
+Dockerfile                   gateway container (Cloud Run)
 ```
+
+## Data migration from SubscriptionTracker
+
+Same Firestore collection (`subscriptions`) and field names; every new field is optional, so existing data loads as auto-pay subscriptions. The app id changed to `com.pnwskyhippy.subpulse`, so it installs alongside the old app.

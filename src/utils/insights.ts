@@ -1,5 +1,5 @@
 import { BillingCycle, Subscription } from '../types';
-import { normalizeToMonthlyCost } from './dateHelpers';
+import { normalizeToMonthlyCost, todayLocal } from './dateHelpers';
 import { CatalogService, getCatalogService, matchCatalogByName, OverlapGroup } from '../data/catalog';
 
 /**
@@ -156,7 +156,7 @@ const OVERLAP_LABEL: Record<OverlapGroup, string> = {
 export function buildSavingsReport(
   subs: Subscription[],
   promotions: Promotion[] = [],
-  today: Date = new Date()
+  today: Date = todayLocal()
 ): { opportunities: SavingsOpportunity[]; totalAnnual: number } {
   const active = subs.filter(isActive);
   const opps: SavingsOpportunity[] = [];

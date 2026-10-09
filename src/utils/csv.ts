@@ -1,5 +1,5 @@
 import { ALL_BILLING_CYCLES, ALL_ITEM_KINDS, BillingCycle, ItemKind, ItemStatus, Subscription } from '../types';
-import { computeNextRenewalDate, formatISODate } from './dateHelpers';
+import { computeNextRenewalDate, formatISODate, todayLocal } from './dateHelpers';
 
 function escapeCsvField(value: string): string {
   if (value.includes(',') || value.includes('"') || value.includes('\n')) {
@@ -233,7 +233,7 @@ export function parseSubscriptionsCSV(text: string): CSVImportResult {
     }
 
     const dateRaw = get('nextRenewalDate');
-    const nextRenewalDate = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : formatISODate(new Date());
+    const nextRenewalDate = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : formatISODate(todayLocal());
     if (dateRaw && nextRenewalDate !== dateRaw) {
       errors.push(`Row ${rowNum} (${name}): invalid date "${dateRaw}", defaulted to today.`);
     }

@@ -6,6 +6,7 @@ import {
   daysUntil,
   formatISODate,
   parseISODate,
+  todayLocal,
 } from './dateHelpers';
 
 /**
@@ -66,7 +67,7 @@ export interface DueInfo {
   amountDue: number;
 }
 
-export function getDueInfo(sub: Subscription, today: Date = new Date()): DueInfo {
+export function getDueInfo(sub: Subscription, today: Date = todayLocal()): DueInfo {
   const status = statusOf(sub);
   const manual = !isAutoPay(sub);
   const dueDate = manual ? parseISODate(sub.nextRenewalDate) : computeNextRenewalDate(sub.nextRenewalDate, sub.billingCycle, today);
@@ -103,7 +104,7 @@ export function getDueInfo(sub: Subscription, today: Date = new Date()): DueInfo
 }
 
 /** For a manual-pay item: how many due dates (inclusive of the stored one) are on or before today. */
-export function countUnpaidCycles(sub: Subscription, today: Date = new Date()): number {
+export function countUnpaidCycles(sub: Subscription, today: Date = todayLocal()): number {
   const anchor = parseISODate(sub.nextRenewalDate);
   if (daysUntil(anchor, today) > 0) return 0;
   if (sub.billingCycle === 'once') return 1;
@@ -124,7 +125,7 @@ export interface PaymentResult {
  * cycle: if three months of rent are overdue, one payment clears the oldest
  * and the next one is still overdue.
  */
-export function applyPayment(sub: Subscription, paidDate: Date = new Date()): PaymentResult {
+export function applyPayment(sub: Subscription, paidDate: Date = todayLocal()): PaymentResult {
   const paidISO = formatISODate(paidDate);
   const settled = isAutoPay(sub)
     ? computeNextRenewalDate(sub.nextRenewalDate, sub.billingCycle, paidDate)
@@ -176,7 +177,7 @@ export interface ScheduledCharge {
  * repeat occurrences (a weekly item appears ~4 times in 30 days) and unpaid
  * overdue amounts (dated today). Sorted by date.
  */
-export function chargesInWindow(subs: Subscription[], days: number, today: Date = new Date()): ScheduledCharge[] {
+export function chargesInWindow(subs: Subscription[], days: number, today: Date = todayLocal()): ScheduledCharge[] {
   const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + days));
   const todayISO = formatISODate(today);
   const out: ScheduledCharge[] = [];

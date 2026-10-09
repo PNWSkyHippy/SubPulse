@@ -1,0 +1,32 @@
+{
+  "name": "subpulse-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SubPulse gateway: MCP endpoint for AI agents + Stripe Financial Connections balances, backed by the app's Firestore.",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js --external:firebase-admin --external:stripe",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "express": "^5.2.1",
+    "firebase-admin": "^14.5.0",
+    "stripe": "^23.0.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.4",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

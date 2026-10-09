@@ -17,6 +17,7 @@ import { useAuth } from './AuthContext';
 import { AccountBalance, Contact, NewSubscription, Note, Payment, Subscription } from '../types';
 import { scheduleReminderNotification, cancelReminderNotification } from '../utils/notifications';
 import { applyPayment } from '../utils/billing';
+import { todayLocal } from '../utils/dateHelpers';
 import { Promotion } from '../utils/insights';
 import { contactDedupeKey } from '../utils/vcard';
 
@@ -153,7 +154,7 @@ export function SubscriptionsProvider({ children }: { children: React.ReactNode 
     const owner = requireUid();
     const item = subscriptions.find((s) => s.id === itemId);
     if (!item) throw new Error('Item not found');
-    const paidDate = opts.paidDate ?? new Date();
+    const paidDate = opts.paidDate ?? todayLocal();
     const { updates, settledDueDate } = applyPayment(item, paidDate);
     const batch = writeBatch(db);
     const payRef = doc(collection(db, COLLECTIONS.payments));

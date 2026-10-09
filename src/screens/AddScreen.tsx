@@ -24,7 +24,7 @@ import { formatCurrency } from '../utils/currency';
 import { exportSubscriptionsToCSV, pickAndParseSubscriptionsCSV } from '../utils/csvExport';
 import { CSVImportResult, parseSubscriptionsCSV } from '../utils/csv';
 import { maybeShowInterstitialAfterSave } from '../utils/ad';
-import { formatISODate } from '../utils/dateHelpers';
+import { formatISODate, todayLocal } from '../utils/dateHelpers';
 
 type Mode = 'known' | 'custom' | 'csv';
 
@@ -65,7 +65,7 @@ export default function AddScreen({ navigation, route }: any) {
       cost: price,
       billingCycle: cycle,
       alternatePrices: plan.monthly !== undefined && plan.yearly !== undefined ? (cycle === 'monthly' ? { yearly: plan.yearly } : { monthly: plan.monthly }) : undefined,
-      nextRenewalDate: formatISODate(new Date()),
+      nextRenewalDate: formatISODate(todayLocal()),
     });
     setFormKey((k) => k + 1);
   };

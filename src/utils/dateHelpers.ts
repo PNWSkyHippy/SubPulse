@@ -6,6 +6,17 @@ export function parseISODate(iso: string): Date {
   return new Date(Date.UTC(y, m - 1, d));
 }
 
+/**
+ * "Today" as the user's LOCAL calendar day, expressed as UTC midnight.
+ *
+ * All date math in this app compares UTC fields of yyyy-mm-dd dates. Using
+ * `new Date()` directly made "today" flip to tomorrow at 5pm in Pacific time
+ * (UTC midnight), so a bill due today showed as overdue in the evening.
+ */
+export function todayLocal(now: Date = new Date()): Date {
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+}
+
 export function formatISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
@@ -80,7 +91,7 @@ export function addCycle(date: Date, cycle: BillingCycle): Date {
 export function computeNextRenewalDate(
   storedRenewalDateISO: string,
   cycle: BillingCycle,
-  today: Date = new Date()
+  today: Date = todayLocal()
 ): Date {
   const anchor = parseISODate(storedRenewalDateISO);
   if (cycle === 'once') return anchor; // one-time charges never roll forward
@@ -96,14 +107,14 @@ export function computeNextRenewalDate(
   return renewal;
 }
 
-export function daysUntil(targetDate: Date, today: Date = new Date()): number {
+export function daysUntil(targetDate: Date, today: Date = todayLocal()): number {
   const todayUTC = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
   const targetUTC = Date.UTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate());
   return Math.round((targetUTC - todayUTC) / (1000 * 60 * 60 * 24));
 }
 
 /** Whether a reminder notification should fire today for this subscription. */
-export function shouldFireReminder(sub: Subscription, today: Date = new Date()): boolean {
+export function shouldFireReminder(sub: Subscription, today: Date = todayLocal()): boolean {
   const nextRenewal = computeNextRenewalDate(sub.nextRenewalDate, sub.billingCycle, today);
   const days = daysUntil(nextRenewal, today);
   return days >= 0 && days <= sub.reminderDaysBefore;
@@ -143,7 +154,7 @@ export function getMonthGrid(year: number, month: number): (number | null)[][] {
  */
 export function groupSubscriptionsByRenewalDate(
   subs: Subscription[],
-  today: Date = new Date()
+  today: Date = todayLocal()
 ): Record<string, Subscription[]> {
   const groups: Record<string, Subscription[]> = {};
   for (const sub of subs) {

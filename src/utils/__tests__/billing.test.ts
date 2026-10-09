@@ -166,3 +166,14 @@ describe('splits', () => {
     ]);
   });
 });
+
+describe('todayLocal', () => {
+  test('uses the local calendar day, not the UTC day', () => {
+    const { todayLocal } = require('../dateHelpers');
+    // 2026-10-08 20:30 local time is 2026-10-09 in UTC for US time zones; we must keep the 8th.
+    const evening = new Date(2026, 9, 8, 20, 30);
+    expect(todayLocal(evening).toISOString().slice(0, 10)).toBe('2026-10-08');
+    const morning = new Date(2026, 9, 8, 0, 5);
+    expect(todayLocal(morning).toISOString().slice(0, 10)).toBe('2026-10-08');
+  });
+});

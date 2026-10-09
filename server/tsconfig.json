@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "../src/types/**/*.ts", "../src/utils/billing.ts", "../src/utils/dateHelpers.ts", "../src/utils/insights.ts", "../src/utils/csv.ts", "../src/data/catalog.ts"]
+}

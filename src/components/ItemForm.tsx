@@ -5,7 +5,7 @@ import { useSubscriptions } from '../context/SubscriptionsContext';
 import { useTheme } from '../context/PreferencesContext';
 import { Body, Button, Card, Chip, ChipRow, Field, Input, Label, Row, ToggleRow } from '../ui/kit';
 import { CYCLE_LABELS, DEFAULT_ESCALATION_DAYS, KIND_LABELS, evenSplits } from '../utils/billing';
-import { formatISODate, addCycle, parseISODate } from '../utils/dateHelpers';
+import { formatISODate, todayLocal, addCycle, parseISODate } from '../utils/dateHelpers';
 import CurrencyPicker from './CurrencyPicker';
 import AlternatePricesInput from './AlternatePricesInput';
 import { KIND_ICONS } from './ItemCard';
@@ -42,7 +42,7 @@ export default function ItemForm({
   const [cost, setCost] = useState(initial?.cost !== undefined ? String(initial.cost) : '');
   const [currency, setCurrency] = useState(initial?.currency ?? 'USD');
   const [cycle, setCycle] = useState<BillingCycle>(initial?.billingCycle ?? 'monthly');
-  const [dueDate, setDueDate] = useState(initial?.nextRenewalDate ?? formatISODate(new Date()));
+  const [dueDate, setDueDate] = useState(initial?.nextRenewalDate ?? formatISODate(todayLocal()));
   const [reminderDays, setReminderDays] = useState(initial?.reminderDaysBefore ?? 3);
   const [autoPay, setAutoPay] = useState<boolean>(initial?.autoPay ?? AUTO_PAY_KINDS.includes(initial?.kind ?? 'subscription'));
   const [autoPayTouched, setAutoPayTouched] = useState(initial?.autoPay !== undefined);
@@ -65,7 +65,7 @@ export default function ItemForm({
   };
 
   const shiftDue = (mode: 'today' | 'next') => {
-    if (mode === 'today') return setDueDate(formatISODate(new Date()));
+    if (mode === 'today') return setDueDate(formatISODate(todayLocal()));
     if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) setDueDate(formatISODate(addCycle(parseISODate(dueDate), cycle === 'once' ? 'monthly' : cycle)));
   };
 

@@ -11,4 +11,9 @@ const config = getDefaultConfig(__dirname);
 config.resolver.sourceExts.push('cjs');
 config.resolver.unstable_enablePackageExports = false;
 
+// The gateway (server/) has its own node_modules; keep Metro from crawling it.
+// Anchored to this project's server/ folder only (node_modules packages with a "server" dir stay visible).
+const serverDir = require('path').resolve(__dirname, 'server').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+config.resolver.blockList = [new RegExp(`^${serverDir}[\\\\/].*`)];
+
 module.exports = config;

@@ -3,12 +3,12 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Subscription } from '../types';
 import { generateSubscriptionsCSV, parseSubscriptionsCSV, CSVImportResult } from './csv';
-import { formatISODate } from './dateHelpers';
+import { formatISODate, todayLocal } from './dateHelpers';
 
 /** Writes subscriptions to a CSV file in the cache directory and opens the native share sheet. */
 export async function exportSubscriptionsToCSV(subs: Subscription[]): Promise<void> {
   const csv = generateSubscriptionsCSV(subs);
-  const file = new File(Paths.cache, `subscriptions-${formatISODate(new Date())}.csv`);
+  const file = new File(Paths.cache, `subscriptions-${formatISODate(todayLocal())}.csv`);
   if (file.exists) file.delete();
   file.create();
   file.write(csv);

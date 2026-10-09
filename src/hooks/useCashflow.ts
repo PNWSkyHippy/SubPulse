@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { usePreferences } from '../context/PreferencesContext';
-import { summarizeMonthlySpend } from '../utils/dateHelpers';
+import { summarizeMonthlySpend, todayLocal } from '../utils/dateHelpers';
 import { chargesInWindow, getDueInfo, statusOf } from '../utils/billing';
 import { convert, totalInBase } from '../utils/forex';
 import { buildSavingsReport } from '../utils/insights';
@@ -13,7 +13,7 @@ export function useCashflow() {
   const { baseCurrency, rates } = usePreferences();
 
   return useMemo(() => {
-    const today = new Date();
+    const today = todayLocal();
     const summary = summarizeMonthlySpend(subscriptions);
     const burn = totalInBase(summary.byCurrency, baseCurrency, rates);
     const toBase = (amount: number, currency: string) => convert(amount, currency, baseCurrency, rates) ?? amount;

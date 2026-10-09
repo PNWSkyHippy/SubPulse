@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import { useSubscriptions } from '../context/SubscriptionsContext';
 import { useTheme } from '../context/PreferencesContext';
 import { Avatar, Badge, Body, Card, Heading, Icon, Label, Metric, Row, Screen, SectionHeader } from '../ui/kit';
-import { getMonthGrid, formatISODate, daysUntil } from '../utils/dateHelpers';
+import { getMonthGrid, formatISODate, daysUntil, todayLocal } from '../utils/dateHelpers';
 import { chargesInWindow, ScheduledCharge, statusOf } from '../utils/billing';
 import { formatCurrency } from '../utils/currency';
 
@@ -17,9 +17,9 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 export default function CalendarScreen({ navigation }: any) {
   const t = useTheme();
   const { subscriptions, payments } = useSubscriptions();
-  const today = useMemo(() => new Date(), []);
-  const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth());
+  const today = useMemo(() => todayLocal(), []);
+  const [year, setYear] = useState(today.getUTCFullYear());
+  const [month, setMonth] = useState(today.getUTCMonth());
   const [selected, setSelected] = useState<string | null>(null);
 
   const grid = useMemo(() => getMonthGrid(year, month), [year, month]);
