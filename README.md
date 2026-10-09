@@ -45,7 +45,21 @@ cp .env.example .env      # fill in Firebase web config
 npx expo start            # scan with Expo Go
 ```
 
-**Expo Go** runs everything except real ads and purchases (a "Remove ads" card shows instead). For those, make a development build: `npx expo run:android` or `eas build --profile development`.
+**Expo Go** is fine for clicking through screens, but since SDK 53 it no longer
+supports full notifications, and it has no AdMob or store-purchase support. SubPulse
+detects Expo Go and skips ads (a "Remove ads" card shows instead); Expo Go will still
+log an `expo-notifications` warning. For the real thing, make a **development build** —
+built in Expo's cloud, no Android Studio needed:
+
+```bash
+npm install -g eas-cli
+eas login
+eas init                                   # once: links the project, fills extra.eas.projectId
+eas build --profile development --platform android
+```
+
+Install the APK it links to on your phone, then run `npx expo start` and open
+the project from that app instead of Expo Go.
 
 Firestore rules (per-user isolation for every collection): `firebase deploy --only firestore:rules`.
 

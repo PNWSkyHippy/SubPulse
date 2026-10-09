@@ -1,5 +1,7 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { initializeAuth } from 'firebase/auth';
+import * as FirebaseAuth from 'firebase/auth';
+import { initializeAuth, Persistence } from 'firebase/auth';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { getFirestore } from 'firebase/firestore';
 
 // Fill these in from your Firebase project settings (console.firebase.google.com
@@ -17,24 +19,19 @@ const firebaseConfig = {
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-// NOTE: We intentionally do NOT use getReactNativePersistence here. In several
-// firebase npm package versions (verified: 10.14.1), the package's exports map
-// has no "react-native" condition for the ./auth subpath, so Metro resolves to
-// the web build, which does not contain getReactNativePersistence at all —
-// calling it throws, which then made getAuth() fail with "Component auth has
-// not been registered yet" (initializeAuth never completed registration).
-//
-// Trade-off: auth state is in-memory only, so signing in again is required
-// after fully closing (not just backgrounding) the app. This can be revisited
-// later using a package like @react-native-firebase or a verified-working
-// firebase version, once the app is otherwise stable.
-// No try/catch here on purpose: calling initializeAuth() twice on the same
-// app instance is safe (verified — it just returns the existing instance,
-// it does not throw). If this line throws, we WANT to see that real error
-// on screen rather than silently falling into getAuth(), whose own internal
-// auto-init path throws a generic, misleading "Component auth has not been
-// registered yet" that hides what actually went wrong here.
-export const auth = initializeAuth(app);
+// Persistent sign-in. metro.config.js turns off package-exports resolution, so
+// Metro loads @firebase/auth's "react-native" build (dist/rn), which exports
+// getReactNativePersistence (Expo Go logs "initializing Firebase Auth for React
+// Native", confirming that build is used). The web build has no such export, so
+// it is looked up dynamically and we fall back to in-memory persistence (sign in
+// again after closing the app) instead of crashing if it is ever missing.
+// initializeAuth is called exactly once either way; calling getAuth() first
+// would register auth without persistence.
+const getRNPersistence: ((storage: unknown) => Persistence) | undefined = (FirebaseAuth as any).getReactNativePersistence;
+export const auth =
+  typeof getRNPersistence === 'function'
+    ? initializeAuth(app, { persistence: getRNPersistence(ReactNativeAsyncStorage) })
+    : initializeAuth(app);
 
 export const db = getFirestore(app);
 export default app;

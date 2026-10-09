@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { usePreferences } from '../context/PreferencesContext';
-import { bannerUnit } from '../utils/ad';
+import { adsAvailable, bannerUnit } from '../utils/ad';
 import { Body, Card, Label, Row, Button } from '../ui/kit';
 
 /**
@@ -13,7 +13,7 @@ export default function AdBanner({ onUpgrade }: { onUpgrade?: () => void }) {
   const { isPremium } = usePreferences();
   if (isPremium) return null;
 
-  const unit = bannerUnit();
+  const unit = adsAvailable() ? bannerUnit() : null;
   if (unit) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-var-requires

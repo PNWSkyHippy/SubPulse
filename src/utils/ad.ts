@@ -12,7 +12,8 @@
  *   show real ad units in a dev build — that can get the AdMob account flagged.
  * - Ad-free = the RevenueCat "premium" entitlement (one-time purchase or sub).
  */
-import { Platform } from 'react-native';
+import { Platform, TurboModuleRegistry } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
 
 // Real AdMob app ids (public identifiers, safe to commit) — also set in app.json's plugin config.
 export const ADMOB_APP_IDS = {
@@ -42,6 +43,15 @@ let adsLoaded = false;
 function sdk(): any {
   if (adsLoaded) return ads;
   adsLoaded = true;
+  // Don't even load the JS package unless the native module is in this binary:
+  // in Expo Go (and on web) the package's top-level code raises an
+  // Invariant Violation that React Native reports even when caught.
+  const inExpoGo = Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
+  const hasNative = Platform.OS !== 'web' && !inExpoGo && TurboModuleRegistry.get('RNGoogleMobileAdsModule') != null;
+  if (!hasNative) {
+    ads = null;
+    return ads;
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     ads = require('react-native-google-mobile-ads');
