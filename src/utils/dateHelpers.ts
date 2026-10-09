@@ -15,34 +15,61 @@ export function normalizeToMonthlyCost(cost: number, cycle: BillingCycle): numbe
   switch (cycle) {
     case 'weekly':
       return (cost * 52) / 12;
+    case 'biweekly':
+      return (cost * 26) / 12;
     case 'monthly':
       return cost;
     case 'quarterly':
       return cost / 3;
+    case 'semiannual':
+      return cost / 6;
     case 'yearly':
       return cost / 12;
+    case 'once':
+      // One-time fees are not part of the recurring monthly burn.
+      return 0;
     default:
       throw new Error(`Unknown billing cycle: ${cycle}`);
   }
 }
 
-function addCycle(date: Date, cycle: BillingCycle): Date {
-  const next = new Date(date.getTime());
+/** Adds whole months, clamping to the last day of the target month (Jan 31 + 1 month = Feb 28/29, not Mar 3). */
+function addMonthsClamped(date: Date, months: number): Date {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth() + months;
+  const d = date.getUTCDate();
+  const lastDay = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(y, m, Math.min(d, lastDay)));
+}
+
+/** Date of the n-th occurrence after `anchor` (n=0 is the anchor itself). Month math is
+ * always done from the anchor, so a bill due on the 31st lands on the last day of short
+ * months and returns to the 31st afterwards instead of drifting earlier. */
+export function addCycles(anchor: Date, cycle: BillingCycle, n: number): Date {
+  const next = new Date(anchor.getTime());
   switch (cycle) {
     case 'weekly':
-      next.setUTCDate(next.getUTCDate() + 7);
-      break;
+      next.setUTCDate(next.getUTCDate() + 7 * n);
+      return next;
+    case 'biweekly':
+      next.setUTCDate(next.getUTCDate() + 14 * n);
+      return next;
     case 'monthly':
-      next.setUTCMonth(next.getUTCMonth() + 1);
-      break;
+      return addMonthsClamped(anchor, n);
     case 'quarterly':
-      next.setUTCMonth(next.getUTCMonth() + 3);
-      break;
+      return addMonthsClamped(anchor, 3 * n);
+    case 'semiannual':
+      return addMonthsClamped(anchor, 6 * n);
     case 'yearly':
-      next.setUTCFullYear(next.getUTCFullYear() + 1);
-      break;
+      return addMonthsClamped(anchor, 12 * n);
+    case 'once':
+      return next; // never repeats
   }
   return next;
+}
+
+export function addCycle(date: Date, cycle: BillingCycle): Date {
+  return addCycles(date, cycle, 1);
 }
 
 /**
@@ -55,14 +82,16 @@ export function computeNextRenewalDate(
   cycle: BillingCycle,
   today: Date = new Date()
 ): Date {
-  let renewal = parseISODate(storedRenewalDateISO);
+  const anchor = parseISODate(storedRenewalDateISO);
+  if (cycle === 'once') return anchor; // one-time charges never roll forward
   const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
 
   // Safety cap to avoid infinite loops on malformed data.
-  let iterations = 0;
-  while (renewal.getTime() < todayUTC.getTime() && iterations < 1000) {
-    renewal = addCycle(renewal, cycle);
-    iterations++;
+  let n = 0;
+  let renewal = anchor;
+  while (renewal.getTime() < todayUTC.getTime() && n < 5000) {
+    n++;
+    renewal = addCycles(anchor, cycle, n);
   }
   return renewal;
 }
@@ -130,6 +159,7 @@ export function summarizeMonthlySpend(subs: Subscription[]): MonthlySpendSummary
   let totalMonthly = 0;
 
   for (const sub of subs) {
+    if (sub.status && sub.status !== 'active') continue; // paused/cancelled/completed don't burn cash
     const monthly = normalizeToMonthlyCost(sub.cost, sub.billingCycle);
     totalMonthly += monthly;
     const cat = sub.category?.trim() || 'Uncategorized';
@@ -146,5 +176,10 @@ export function summarizeMonthlySpend(subs: Subscription[]): MonthlySpendSummary
     byCurrency[cur] = Math.round(byCurrency[cur] * 100) / 100;
   }
 
-  return { totalMonthly, byCategory, byCurrency, subscriptionCount: subs.length };
+  return {
+    totalMonthly,
+    byCategory,
+    byCurrency,
+    subscriptionCount: subs.filter((s) => !s.status || s.status === 'active').length,
+  };
 }

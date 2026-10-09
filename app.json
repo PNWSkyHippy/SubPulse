@@ -9,7 +9,9 @@
     "splash": {
       "backgroundColor": "#0F172A"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.pnwskyhippy.subscriptiontracker"
@@ -20,7 +22,9 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0F172A"
       },
-      "permissions": ["POST_NOTIFICATIONS"]
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ]
     },
     "plugins": [
       [
@@ -28,6 +32,15 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#6366F1"
+        }
+      ],
+      "expo-web-browser",
+      "expo-font",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-6551024191049113~2639682721",
+          "iosAppId": "ca-app-pub-6551024191049113~5753051363"
         }
       ]
     ],

@@ -24,7 +24,7 @@ describe('generateSubscriptionsCSV', () => {
     ]);
     const lines = csv.split('\n');
     expect(lines[0]).toBe(
-      'Name,Cost,Currency,Billing Cycle,Next Renewal,Category,Notes,Alt Weekly Price,Alt Monthly Price,Alt Quarterly Price,Alt Yearly Price'
+      'Name,Cost,Currency,Billing Cycle,Next Renewal,Category,Notes,Alt Weekly Price,Alt Monthly Price,Alt Quarterly Price,Alt Yearly Price,Kind,Status,Auto Pay,Reminder Days,Catalog Id,Last Paid'
     );
     expect(lines.length).toBe(3);
     expect(lines[1]).toContain('Netflix');
@@ -44,8 +44,11 @@ describe('generateSubscriptionsCSV', () => {
   test('handles missing optional fields as empty strings', () => {
     const csv = generateSubscriptionsCSV([makeSub({ category: undefined, notes: undefined })]);
     const dataLine = csv.split('\n')[1];
-    // category, notes, and all 4 alternate-price columns are empty -> 6 trailing empty fields.
-    expect(dataLine.endsWith(',,,,,,')).toBe(true);
+    const fields = dataLine.split(',');
+    // category, notes and the 4 alternate-price columns are empty
+    expect(fields.slice(5, 11)).toEqual(['', '', '', '', '', '']);
+    // kind, status, auto pay empty; reminder days present; catalog id, last paid empty
+    expect(fields.slice(11)).toEqual(['', '', '', '3', '', '']);
   });
 });
 
@@ -137,7 +140,7 @@ describe('parseSubscriptionsCSV', () => {
   });
 
   test('defaults an unknown billing cycle to monthly and reports it', () => {
-    const csv = 'Name,Cost,Billing Cycle\nNetflix,9.99,fortnightly';
+    const csv = 'Name,Cost,Billing Cycle\nNetflix,9.99,every-blue-moon';
     const { rows, errors } = parseSubscriptionsCSV(csv);
     expect(rows[0].billingCycle).toBe('monthly');
     expect(errors[0]).toContain('unknown billing cycle');

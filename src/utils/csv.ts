@@ -1,4 +1,4 @@
-import { BillingCycle, Subscription } from '../types';
+import { ALL_BILLING_CYCLES, ALL_ITEM_KINDS, BillingCycle, ItemKind, ItemStatus, Subscription } from '../types';
 import { computeNextRenewalDate, formatISODate } from './dateHelpers';
 
 function escapeCsvField(value: string): string {
@@ -12,9 +12,13 @@ export function generateSubscriptionsCSV(subs: Subscription[]): string {
   const headers = [
     'Name', 'Cost', 'Currency', 'Billing Cycle', 'Next Renewal', 'Category', 'Notes',
     'Alt Weekly Price', 'Alt Monthly Price', 'Alt Quarterly Price', 'Alt Yearly Price',
+    'Kind', 'Status', 'Auto Pay', 'Reminder Days', 'Catalog Id', 'Last Paid',
   ];
   const rows = subs.map((sub) => {
-    const nextRenewal = formatISODate(computeNextRenewalDate(sub.nextRenewalDate, sub.billingCycle));
+    // Manual-pay items keep their unpaid due date (rolling it would hide an overdue bill);
+    // auto-pay items export their upcoming charge date.
+    const manual = sub.autoPay === false || (sub.autoPay === undefined && sub.kind !== undefined && !['subscription', 'magazine', 'membership'].includes(sub.kind));
+    const nextRenewal = manual ? sub.nextRenewalDate : formatISODate(computeNextRenewalDate(sub.nextRenewalDate, sub.billingCycle));
     return [
       sub.name,
       sub.cost.toString(),
@@ -27,6 +31,12 @@ export function generateSubscriptionsCSV(subs: Subscription[]): string {
       sub.alternatePrices?.monthly?.toString() ?? '',
       sub.alternatePrices?.quarterly?.toString() ?? '',
       sub.alternatePrices?.yearly?.toString() ?? '',
+      sub.kind ?? '',
+      sub.status ?? '',
+      sub.autoPay === undefined ? '' : sub.autoPay ? 'yes' : 'no',
+      String(sub.reminderDaysBefore ?? ''),
+      sub.catalogId ?? '',
+      sub.lastPaidDate ?? '',
     ]
       .map(escapeCsvField)
       .join(',');
@@ -109,6 +119,11 @@ export interface ParsedSubscriptionInput {
   category?: string;
   notes?: string;
   alternatePrices?: Partial<Record<BillingCycle, number>>;
+  kind?: ItemKind;
+  status?: ItemStatus;
+  autoPay?: boolean;
+  catalogId?: string;
+  lastPaidDate?: string;
 }
 
 export interface CSVImportResult {
@@ -116,7 +131,22 @@ export interface CSVImportResult {
   errors: string[];
 }
 
-const VALID_CYCLES: BillingCycle[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
+const VALID_CYCLES: BillingCycle[] = ALL_BILLING_CYCLES;
+const CYCLE_ALIASES: Record<string, BillingCycle> = {
+  annual: 'yearly',
+  annually: 'yearly',
+  year: 'yearly',
+  month: 'monthly',
+  week: 'weekly',
+  'bi-weekly': 'biweekly',
+  fortnightly: 'biweekly',
+  'semi-annual': 'semiannual',
+  'semi-annually': 'semiannual',
+  'one-time': 'once',
+  onetime: 'once',
+  'one time': 'once',
+};
+const VALID_STATUSES: ItemStatus[] = ['active', 'paused', 'cancelled', 'completed'];
 const HEADER_ALIASES: Record<string, string> = {
   name: 'name',
   cost: 'cost',
@@ -131,6 +161,19 @@ const HEADER_ALIASES: Record<string, string> = {
   'alt monthly price': 'altMonthly',
   'alt quarterly price': 'altQuarterly',
   'alt yearly price': 'altYearly',
+  amount: 'cost',
+  price: 'cost',
+  frequency: 'billingCycle',
+  cycle: 'billingCycle',
+  'due date': 'nextRenewalDate',
+  kind: 'kind',
+  type: 'kind',
+  status: 'status',
+  'auto pay': 'autoPay',
+  autopay: 'autoPay',
+  'reminder days': 'reminderDays',
+  'catalog id': 'catalogId',
+  'last paid': 'lastPaidDate',
 };
 
 /**
@@ -176,13 +219,14 @@ export function parseSubscriptionsCSV(text: string): CSVImportResult {
       continue;
     }
 
-    const costNum = parseFloat(get('cost'));
+    const costNum = parseFloat(get('cost').replace(/[$€£¥,\s]/g, ''));
     if (isNaN(costNum) || costNum < 0) {
       errors.push(`Row ${rowNum} (${name}): invalid cost, skipped.`);
       continue;
     }
 
-    const cycleRaw = get('billingCycle').toLowerCase() || 'monthly';
+    const cycleIn = get('billingCycle').toLowerCase() || 'monthly';
+    const cycleRaw = CYCLE_ALIASES[cycleIn] ?? cycleIn;
     const billingCycle = VALID_CYCLES.includes(cycleRaw as BillingCycle) ? (cycleRaw as BillingCycle) : 'monthly';
     if (!VALID_CYCLES.includes(cycleRaw as BillingCycle) && get('billingCycle')) {
       errors.push(`Row ${rowNum} (${name}): unknown billing cycle "${cycleRaw}", defaulted to monthly.`);
@@ -212,13 +256,27 @@ export function parseSubscriptionsCSV(text: string): CSVImportResult {
       altPrices[altCycle] = num;
     }
 
+    const kindRaw = get('kind').toLowerCase();
+    const kind = ALL_ITEM_KINDS.includes(kindRaw as ItemKind) ? (kindRaw as ItemKind) : undefined;
+    const statusRaw = get('status').toLowerCase();
+    const status = VALID_STATUSES.includes(statusRaw as ItemStatus) ? (statusRaw as ItemStatus) : undefined;
+    const autoPayRaw = get('autoPay').toLowerCase();
+    const autoPay = ['yes', 'true', '1', 'y'].includes(autoPayRaw) ? true : ['no', 'false', '0', 'n'].includes(autoPayRaw) ? false : undefined;
+    const reminderNum = parseInt(get('reminderDays'), 10);
+    const lastPaid = get('lastPaidDate');
+
     rows.push({
       name,
       cost: costNum,
-      currency: get('currency') || 'USD',
+      currency: (get('currency') || 'USD').toUpperCase(),
       billingCycle,
       nextRenewalDate,
-      reminderDaysBefore: 3,
+      reminderDaysBefore: Number.isFinite(reminderNum) && reminderNum >= 0 ? reminderNum : 3,
+      kind,
+      status,
+      autoPay,
+      catalogId: get('catalogId') || undefined,
+      lastPaidDate: /^\d{4}-\d{2}-\d{2}$/.test(lastPaid) ? lastPaid : undefined,
       category: get('category') || undefined,
       notes: get('notes') || undefined,
       alternatePrices: Object.keys(altPrices).length > 0 ? altPrices : undefined,
