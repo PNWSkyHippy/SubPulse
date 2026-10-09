@@ -1,9 +1,62 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /subscriptions/{subId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.ownerId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.ownerId;
+
+    function signedIn() { return request.auth != null; }
+    function ownsExisting() { return signedIn() && request.auth.uid == resource.data.ownerId; }
+    function ownsNew() { return signedIn() && request.auth.uid == request.resource.data.ownerId; }
+    // ownerId can never be changed on update
+    function keepsOwner() { return request.resource.data.ownerId == resource.data.ownerId; }
+
+    // Per-user data. The MCP gateway server uses the Admin SDK, which bypasses
+    // these rules, and enforces ownership itself from the token -> uid mapping.
+    match /subscriptions/{id} {
+      allow read, delete: if ownsExisting();
+      allow update: if ownsExisting() && keepsOwner();
+      allow create: if ownsNew();
+    }
+    match /payments/{id} {
+      allow read, delete: if ownsExisting();
+      allow update: if ownsExisting() && keepsOwner();
+      allow create: if ownsNew();
+    }
+    match /notes/{id} {
+      allow read, delete: if ownsExisting();
+      allow update: if ownsExisting() && keepsOwner();
+      allow create: if ownsNew();
+    }
+    match /contacts/{id} {
+      allow read, delete: if ownsExisting();
+      allow update: if ownsExisting() && keepsOwner();
+      allow create: if ownsNew();
+    }
+    // Stripe-linked balances are written only by the server; users may keep manual ones.
+    match /balances/{id} {
+      allow read, delete: if ownsExisting();
+      allow create: if ownsNew() && request.resource.data.source == 'manual';
+      allow update: if ownsExisting() && keepsOwner() && resource.data.source == 'manual';
+    }
+
+    // MCP agent tokens: the document id is the SHA-256 of the token, so the
+    // token itself is never stored. Users can list/revoke their own tokens.
+    match /mcpTokens/{hash} {
+      allow read, delete: if ownsExisting();
+      allow create: if ownsNew()
+        && request.resource.data.keys().hasOnly(['ownerId', 'label', 'scopes', 'createdAt', 'last4'])
+        && request.resource.data.scopes is list;
+      allow update: if false;
+    }
+
+    // MCP activity log written by the server, readable by its owner.
+    match /mcpActivity/{id} {
+      allow read: if ownsExisting();
+      allow write: if false;
+    }
+
+    // Promotions feed: readable by any signed-in user, written only by the server/admin.
+    match /promotions/{id} {
+      allow read: if signedIn();
+      allow write: if false;
     }
   }
 }

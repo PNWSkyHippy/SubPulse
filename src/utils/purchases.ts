@@ -38,7 +38,12 @@ export function configurePurchases(appUserId?: string): void {
 }
 
 /** Fetches the current default offering (the set of packages/prices to show on a paywall). */
+export function purchasesConfigured(): boolean {
+  return configured;
+}
+
 export async function getCurrentOffering(): Promise<PurchasesOffering | null> {
+  if (!configured) return null;
   const offerings = await Purchases.getOfferings();
   return offerings.current;
 }
@@ -56,6 +61,7 @@ export async function restorePurchases(): Promise<CustomerInfo> {
 
 /** Whether the current user has active premium access. */
 export async function hasPremiumEntitlement(): Promise<boolean> {
+  if (!configured) return false; // no RevenueCat keys yet -> everyone is on the free tier
   const customerInfo = await Purchases.getCustomerInfo();
   return typeof customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID] !== 'undefined';
 }

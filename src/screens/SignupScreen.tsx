@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
+import { Alert, Pressable } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/PreferencesContext';
+import { Body, Button, Card, Field, Heading, Input, Screen } from '../ui/kit';
 
 export default function SignupScreen({ navigation }: any) {
+  const t = useTheme();
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const onSubmit = async () => {
-    if (password.length < 6) {
-      Alert.alert('Password too short', 'Use at least 6 characters.');
-      return;
-    }
+    if (password.length < 6) return Alert.alert('Password too short', 'Use at least 6 characters.');
     setSubmitting(true);
     try {
       await signUp(email.trim(), password);
@@ -24,45 +24,19 @@ export default function SignupScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create your account</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password (min 6 characters)"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <Pressable style={styles.button} onPress={onSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{submitting ? 'Creating…' : 'Create Account'}</Text>
+    <Screen>
+      <Card style={{ gap: 12, marginTop: 64 }}>
+        <Heading size="lg">Create your account</Heading>
+        <Body muted small>Your bills sync across devices and stay private to your account.</Body>
+        <Field label="Email"><Input autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} /></Field>
+        <Field label="Password (min 6 characters)"><Input secureTextEntry value={password} onChangeText={setPassword} /></Field>
+        <Button title="Create account" loading={submitting} onPress={onSubmit} />
+      </Card>
+      <Pressable onPress={() => navigation.goBack()}>
+        <Body muted style={{ textAlign: 'center', marginTop: 12 }}>
+          Already have an account? <Body style={{ color: t.colors.accent }}>Sign in</Body>
+        </Body>
       </Pressable>
-      <Pressable onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.link}>Already have an account? Sign in</Text>
-      </Pressable>
-    </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0F172A' },
-  title: { fontSize: 28, fontWeight: '700', color: '#F8FAFC', marginBottom: 24 },
-  input: {
-    backgroundColor: '#1E293B',
-    color: '#F8FAFC',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
-    fontSize: 16,
-  },
-  button: { backgroundColor: '#6366F1', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { color: '#94A3B8', textAlign: 'center', marginTop: 16 },
-});

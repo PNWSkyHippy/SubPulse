@@ -1,29 +1,33 @@
 {
   "expo": {
-    "name": "Subscription Tracker",
-    "slug": "subscription-tracker",
-    "version": "1.0.0",
+    "name": "SubPulse",
+    "slug": "subpulse",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
-      "backgroundColor": "#0F172A"
+      "backgroundColor": "#08090A"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.pnwskyhippy.subscriptiontracker"
+      "bundleIdentifier": "com.pnwskyhippy.subpulse",
+      "infoPlist": {
+        "NSContactsUsageDescription": "SubPulse imports contacts so you can assign payees and split bills."
+      }
     },
     "android": {
-      "package": "com.pnwskyhippy.subscriptiontracker",
+      "package": "com.pnwskyhippy.subpulse",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0F172A"
+        "backgroundColor": "#08090A"
       },
       "permissions": [
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "READ_CONTACTS"
       ]
     },
     "plugins": [
@@ -31,7 +35,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#6366F1"
+          "color": "#00F59B"
         }
       ],
       "expo-web-browser",
@@ -42,12 +46,19 @@
           "androidAppId": "ca-app-pub-6551024191049113~2639682721",
           "iosAppId": "ca-app-pub-6551024191049113~5753051363"
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "SubPulse imports contacts so you can assign payees and split bills."
+        }
       ]
     ],
     "extra": {
       "eas": {
         "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
       }
-    }
+    },
+    "scheme": "subpulse"
   }
 }

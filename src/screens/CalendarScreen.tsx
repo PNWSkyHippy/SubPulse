@@ -1,147 +1,132 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSubscriptions } from '../context/SubscriptionsContext';
-import { getMonthGrid, groupSubscriptionsByRenewalDate, formatISODate } from '../utils/dateHelpers';
+import { useTheme } from '../context/PreferencesContext';
+import { Avatar, Badge, Body, Card, Heading, Icon, Label, Metric, Row, Screen, SectionHeader } from '../ui/kit';
+import { getMonthGrid, formatISODate, daysUntil } from '../utils/dateHelpers';
+import { chargesInWindow, ScheduledCharge, statusOf } from '../utils/billing';
 import { formatCurrency } from '../utils/currency';
-import SubscriptionIcon from '../components/SubscriptionIcon';
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+/**
+ * Month view of every expected charge (weekly items appear each week),
+ * overdue bills (shown on today) and, for past days, payments recorded.
+ */
 export default function CalendarScreen({ navigation }: any) {
-  const { subscriptions } = useSubscriptions();
+  const t = useTheme();
+  const { subscriptions, payments } = useSubscriptions();
   const today = useMemo(() => new Date(), []);
-  const [viewYear, setViewYear] = useState(today.getFullYear());
-  const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [selected, setSelected] = useState<string | null>(null);
 
-  const grid = useMemo(() => getMonthGrid(viewYear, viewMonth), [viewYear, viewMonth]);
-  const renewalsByDate = useMemo(() => groupSubscriptionsByRenewalDate(subscriptions), [subscriptions]);
-
+  const grid = useMemo(() => getMonthGrid(year, month), [year, month]);
   const todayKey = formatISODate(today);
-  const isCurrentMonth = viewYear === today.getFullYear() && viewMonth === today.getMonth();
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-  const goToPrevMonth = () => {
-    if (viewMonth === 0) {
-      setViewYear(viewYear - 1);
-      setViewMonth(11);
-    } else {
-      setViewMonth(viewMonth - 1);
-    }
+  const charges = useMemo(() => {
+    const monthEnd = new Date(Date.UTC(year, month + 1, 0));
+    const days = daysUntil(monthEnd, today);
+    if (days < 0) return [] as ScheduledCharge[];
+    return chargesInWindow(subscriptions.filter((s) => statusOf(s) === 'active'), days, today).filter((c) => c.dateISO.startsWith(monthPrefix));
+  }, [subscriptions, year, month, today, monthPrefix]);
+
+  const byDay = useMemo(() => {
+    const m: Record<string, { charges: ScheduledCharge[]; paid: number }> = {};
+    for (const c of charges) (m[c.dateISO] ??= { charges: [], paid: 0 }).charges.push(c);
+    for (const p of payments) if (p.paidDate.startsWith(monthPrefix)) (m[p.paidDate] ??= { charges: [], paid: 0 }).paid++;
+    return m;
+  }, [charges, payments, monthPrefix]);
+
+  const monthTotal = charges.reduce((sum, c) => sum + c.amount, 0);
+  const currency = charges[0]?.currency ?? 'USD';
+  const shift = (d: number) => {
+    const m = month + d;
+    setYear(year + Math.floor(m / 12));
+    setMonth(((m % 12) + 12) % 12);
+    setSelected(null);
   };
-
-  const goToNextMonth = () => {
-    if (viewMonth === 11) {
-      setViewYear(viewYear + 1);
-      setViewMonth(0);
-    } else {
-      setViewMonth(viewMonth + 1);
-    }
-  };
-
-  // Upcoming payments: everything in the currently-viewed month, in date order.
-  const upcomingInMonth = Object.keys(renewalsByDate)
-    .filter((dateKey) => {
-      const [y, m] = dateKey.split('-').map(Number);
-      return y === viewYear && m - 1 === viewMonth;
-    })
-    .sort()
-    .flatMap((dateKey) => renewalsByDate[dateKey].map((sub) => ({ sub, dateKey })));
+  const list = selected ? byDay[selected]?.charges ?? [] : charges;
+  const itemName = (id: string) => subscriptions.find((s) => s.id === id)?.name ?? 'Deleted item';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
-      <View style={styles.calendarCard}>
-        <View style={styles.monthHeader}>
-          <Pressable onPress={goToPrevMonth} hitSlop={12}>
-            <Text style={styles.navArrow}>‹</Text>
-          </Pressable>
-          <Text style={styles.monthTitle}>{MONTH_NAMES[viewMonth]} {viewYear}</Text>
-          <Pressable onPress={goToNextMonth} hitSlop={12}>
-            <Text style={styles.navArrow}>›</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.weekdayRow}>
-          {WEEKDAY_LABELS.map((label, idx) => (
-            <Text key={idx} style={styles.weekdayLabel}>{label}</Text>
+    <Screen>
+      <Row>
+        <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
+          <Icon name="chevron-left" size={26} color={t.colors.text} />
+        </Pressable>
+        <Heading size="md">Calendar</Heading>
+      </Row>
+      <Card>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Pressable onPress={() => shift(-1)} hitSlop={12}><Icon name="chevron-left" color={t.colors.accent} /></Pressable>
+          <Heading size="sm">{MONTHS[month]} {year}</Heading>
+          <Pressable onPress={() => shift(1)} hitSlop={12}><Icon name="chevron-right" color={t.colors.accent} /></Pressable>
+        </Row>
+        <Row style={{ marginTop: 10 }} gap={0}>
+          {WEEKDAYS.map((w, i) => (
+            <Label key={i} style={{ flex: 1, textAlign: 'center' }}>{w}</Label>
           ))}
-        </View>
-
-        {grid.map((week, weekIdx) => (
-          <View key={weekIdx} style={styles.weekRow}>
-            {week.map((day, dayIdx) => {
-              if (day === null) return <View key={dayIdx} style={styles.dayCell} />;
-              const dateKey = formatISODate(new Date(Date.UTC(viewYear, viewMonth, day)));
-              const hasRenewal = !!renewalsByDate[dateKey];
-              const isToday = isCurrentMonth && dateKey === todayKey;
+        </Row>
+        {grid.map((week, wi) => (
+          <Row key={wi} gap={0} style={{ marginTop: 4 }}>
+            {week.map((day, di) => {
+              if (day === null) return <View key={di} style={{ flex: 1, height: 40 }} />;
+              const key = `${monthPrefix}-${String(day).padStart(2, '0')}`;
+              const info = byDay[key];
+              const isToday = key === todayKey;
+              const isSel = key === selected;
+              const overdue = info?.charges.some((c) => c.dateISO === todayKey && isToday && c.item.nextRenewalDate < todayKey);
               return (
-                <View key={dayIdx} style={styles.dayCell}>
-                  <View style={[styles.dayCircle, isToday && styles.dayCircleToday]}>
-                    <Text style={[styles.dayText, isToday && styles.dayTextToday]}>{day}</Text>
-                  </View>
-                  {hasRenewal && <View style={styles.renewalDot} />}
-                </View>
+                <Pressable key={di} onPress={() => setSelected(isSel ? null : key)} style={{ flex: 1, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 6, backgroundColor: isSel ? t.colors.accentSoft : 'transparent', borderWidth: isToday ? 1 : 0, borderColor: t.colors.accent }}>
+                  <Text style={{ color: t.colors.text, fontFamily: t.fonts.bodyMedium, fontSize: 13 }}>{day}</Text>
+                  <Row gap={2}>
+                    {info?.charges.length ? <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: overdue ? t.colors.danger : t.colors.warning }} /> : null}
+                    {info?.paid ? <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: t.colors.accent }} /> : null}
+                  </Row>
+                </Pressable>
               );
             })}
-          </View>
+          </Row>
         ))}
-      </View>
+        <Row style={{ marginTop: 8 }} gap={12}>
+          <Row gap={4}><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.colors.warning }} /><Body small muted>due</Body></Row>
+          <Row gap={4}><View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.colors.accent }} /><Body small muted>paid</Body></Row>
+        </Row>
+      </Card>
 
-      <Text style={styles.sectionTitle}>
-        {isCurrentMonth ? 'Upcoming Payments' : `Payments in ${MONTH_NAMES[viewMonth]}`}
-      </Text>
+      <Card tier={2}>
+        <Label>{selected ? `Due ${selected}` : 'Expected this month'}</Label>
+        <Metric size={22}>{formatCurrency(selected ? list.reduce((s, c) => s + c.amount, 0) : monthTotal, currency)}</Metric>
+      </Card>
 
-      {upcomingInMonth.length === 0 ? (
-        <Text style={styles.empty}>No renewals this month.</Text>
-      ) : (
-        upcomingInMonth.map(({ sub, dateKey }) => (
-          <Pressable
-            key={sub.id}
-            style={styles.paymentRow}
-            onPress={() => navigation.navigate('SubscriptionDetail', { id: sub.id })}
-          >
-            <SubscriptionIcon name={sub.name} size={36} />
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.paymentName}>{sub.name}</Text>
-              <Text style={styles.paymentDate}>{dateKey}</Text>
+      <SectionHeader title={selected ? 'That day' : 'Upcoming charges'} right={`${list.length}`} />
+      {list.length === 0 ? <Body small muted>Nothing scheduled.</Body> : null}
+      {list.map((c, i) => (
+        <Card key={`${c.item.id}-${c.dateISO}-${i}`} onPress={() => navigation.navigate('ItemDetail', { id: c.item.id })}>
+          <Row>
+            <Avatar name={c.item.name} size={32} />
+            <View style={{ flex: 1 }}>
+              <Body>{c.item.name}</Body>
+              <Body small muted>{c.dateISO}</Body>
             </View>
-            <Text style={styles.paymentCost}>{formatCurrency(sub.cost, sub.currency)}</Text>
-          </Pressable>
-        ))
-      )}
-    </ScrollView>
+            <Metric size={15}>{formatCurrency(c.amount, c.currency)}</Metric>
+          </Row>
+        </Card>
+      ))}
+      {selected && byDay[selected]?.paid ? (
+        <>
+          <SectionHeader title="Payments recorded" />
+          {payments.filter((p) => p.paidDate === selected).map((p) => (
+            <Row key={p.id} style={{ justifyContent: 'space-between' }}>
+              <Body small>{itemName(p.itemId)}</Body>
+              <Badge text={formatCurrency(p.amount, p.currency)} tone="ok" />
+            </Row>
+          ))}
+        </>
+      ) : null}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F172A' },
-  calendarCard: { backgroundColor: '#1E293B', borderRadius: 16, padding: 16 },
-  monthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  navArrow: { color: '#F8FAFC', fontSize: 24, paddingHorizontal: 12 },
-  monthTitle: { color: '#F8FAFC', fontSize: 17, fontWeight: '700' },
-  weekdayRow: { flexDirection: 'row', marginBottom: 4 },
-  weekdayLabel: { flex: 1, textAlign: 'center', color: '#64748B', fontSize: 12, fontWeight: '600' },
-  weekRow: { flexDirection: 'row' },
-  dayCell: { flex: 1, alignItems: 'center', paddingVertical: 4 },
-  dayCircle: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-  dayCircleToday: { backgroundColor: '#6366F1' },
-  dayText: { color: '#CBD5E1', fontSize: 13 },
-  dayTextToday: { color: '#fff', fontWeight: '700' },
-  renewalDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#FBBF24', marginTop: 2 },
-  sectionTitle: { color: '#F8FAFC', fontSize: 18, fontWeight: '700', marginTop: 24, marginBottom: 12 },
-  empty: { color: '#94A3B8' },
-  paymentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-  },
-  paymentName: { color: '#F8FAFC', fontSize: 15, fontWeight: '600' },
-  paymentDate: { color: '#94A3B8', fontSize: 12, marginTop: 2 },
-  paymentCost: { color: '#F8FAFC', fontSize: 15, fontWeight: '700' },
-});

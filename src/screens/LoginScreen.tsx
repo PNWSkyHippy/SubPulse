@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/PreferencesContext';
+import { Body, Button, Card, Field, Heading, Icon, Input, Label, Screen } from '../ui/kit';
 
 export default function LoginScreen({ navigation }: any) {
+  const t = useTheme();
   const { signIn, resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -22,10 +25,7 @@ export default function LoginScreen({ navigation }: any) {
 
   const onForgotPassword = async () => {
     const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      Alert.alert('Enter your email first', 'Type your email above, then tap "Forgot password?" again.');
-      return;
-    }
+    if (!trimmedEmail) return Alert.alert('Enter your email first', 'Type your email above, then tap "Forgot password?" again.');
     setSendingReset(true);
     try {
       await resetPassword(trimmedEmail);
@@ -38,49 +38,28 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome back</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-      <Pressable onPress={onForgotPassword} disabled={sendingReset}>
-        <Text style={styles.forgotLink}>{sendingReset ? 'Sending…' : 'Forgot password?'}</Text>
-      </Pressable>
-      <Pressable style={styles.button} onPress={onSubmit} disabled={submitting}>
-        <Text style={styles.buttonText}>{submitting ? 'Signing in…' : 'Sign In'}</Text>
-      </Pressable>
+    <Screen>
+      <View style={{ marginTop: 48, alignItems: 'center', gap: 8 }}>
+        <View style={{ width: 56, height: 56, borderRadius: 12, backgroundColor: t.colors.accent, alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="pulse" size={32} color={t.colors.onAccent} />
+        </View>
+        <Heading size="xl">SubPulse</Heading>
+        <Label>Recurring capital, under control</Label>
+      </View>
+      <Card style={{ gap: 12, marginTop: 24 }}>
+        <Heading size="md">Welcome back</Heading>
+        <Field label="Email"><Input autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="you@example.com" /></Field>
+        <Field label="Password"><Input secureTextEntry value={password} onChangeText={setPassword} placeholder="••••••••" /></Field>
+        <Pressable onPress={onForgotPassword} disabled={sendingReset}>
+          <Body small style={{ color: t.colors.accent, textAlign: 'right' }}>{sendingReset ? 'Sending…' : 'Forgot password?'}</Body>
+        </Pressable>
+        <Button title="Sign in" loading={submitting} onPress={onSubmit} />
+      </Card>
       <Pressable onPress={() => navigation.navigate('Signup')}>
-        <Text style={styles.link}>No account? Create one</Text>
+        <Body muted style={{ textAlign: 'center', marginTop: 12 }}>
+          No account? <Body style={{ color: t.colors.accent }}>Create one</Body>
+        </Body>
       </Pressable>
-    </View>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: '#0F172A' },
-  title: { fontSize: 28, fontWeight: '700', color: '#F8FAFC', marginBottom: 24 },
-  input: {
-    backgroundColor: '#1E293B',
-    color: '#F8FAFC',
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 12,
-    fontSize: 16,
-  },
-  forgotLink: { color: '#6366F1', fontSize: 13, textAlign: 'right', marginBottom: 8 },
-  button: { backgroundColor: '#6366F1', borderRadius: 10, padding: 14, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  link: { color: '#94A3B8', textAlign: 'center', marginTop: 16 },
-});

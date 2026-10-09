@@ -1,15 +1,12 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { BillingCycle } from '../types';
+import { Body, Input, Row } from '../ui/kit';
+import { CYCLE_LABELS } from '../utils/billing';
 
-const ALL_CYCLES: BillingCycle[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
-const CYCLE_LABELS: Record<BillingCycle, string> = {
-  weekly: 'Weekly price',
-  monthly: 'Monthly price',
-  quarterly: 'Quarterly price',
-  yearly: 'Yearly price',
-};
+const ALT_CYCLES: BillingCycle[] = ['weekly', 'monthly', 'quarterly', 'yearly'];
 
+/** Optional known prices on other billing cycles, so the optimizer can show exact savings. */
 export default function AlternatePricesInput({
   currentCycle,
   value,
@@ -19,7 +16,7 @@ export default function AlternatePricesInput({
   value: Partial<Record<BillingCycle, number>>;
   onChange: (value: Partial<Record<BillingCycle, number>>) => void;
 }) {
-  const otherCycles = ALL_CYCLES.filter((c) => c !== currentCycle);
+  const otherCycles = ALT_CYCLES.filter((c) => c !== currentCycle);
 
   const setFieldText = (cycle: BillingCycle, text: string) => {
     const trimmed = text.trim();
@@ -28,48 +25,29 @@ export default function AlternatePricesInput({
       delete next[cycle];
     } else {
       const num = parseFloat(trimmed);
-      if (!isNaN(num) && num >= 0) {
-        next[cycle] = num;
-      }
+      if (!isNaN(num) && num >= 0) next[cycle] = num;
     }
     onChange(next);
   };
 
   return (
-    <View>
-      <Text style={styles.helpText}>
-        Know what this costs on a different billing cycle? Enter it below so Insights can show an exact savings
-        comparison instead of a general nudge.
-      </Text>
+    <View style={{ gap: 8 }}>
+      <Body small muted>
+        Know what this costs on a different billing cycle? Enter it so the optimizer can show an exact savings comparison.
+      </Body>
       {otherCycles.map((cycle) => (
-        <View key={cycle} style={styles.row}>
-          <Text style={styles.rowLabel}>{CYCLE_LABELS[cycle]}</Text>
-          <TextInput
-            style={styles.rowInput}
+        <Row key={cycle} style={{ justifyContent: 'space-between' }}>
+          <Body muted>{CYCLE_LABELS[cycle]} price</Body>
+          <Input
+            mono
+            style={{ width: 110, textAlign: 'right' }}
             keyboardType="decimal-pad"
             placeholder="optional"
-            placeholderTextColor="#475569"
             defaultValue={value[cycle] !== undefined ? String(value[cycle]) : ''}
             onChangeText={(text) => setFieldText(cycle, text)}
           />
-        </View>
+        </Row>
       ))}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  helpText: { color: '#64748B', fontSize: 12, marginBottom: 10, lineHeight: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  rowLabel: { color: '#94A3B8', fontSize: 13, textTransform: 'capitalize' },
-  rowInput: {
-    backgroundColor: '#1E293B',
-    color: '#F8FAFC',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    width: 100,
-    textAlign: 'right',
-  },
-});
