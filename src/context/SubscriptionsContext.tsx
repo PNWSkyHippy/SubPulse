@@ -75,6 +75,11 @@ function toUpdate(obj: object): Record<string, unknown> {
 function useOwnedCollection<T>(name: string, uid: string | undefined, onData?: (rows: T[]) => void): [T[], boolean] {
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
+  // Firestore permanently closes a listener after an error (e.g. permission-denied
+  // before security rules were deployed, or a network drop). Bumping `attempt`
+  // re-subscribes, with a growing delay, so data appears once the cause is fixed
+  // without the user having to restart the app.
+  const [attempt, setAttempt] = useState(0);
   const cb = useRef(onData);
   cb.current = onData;
   useEffect(() => {
@@ -84,8 +89,9 @@ function useOwnedCollection<T>(name: string, uid: string | undefined, onData?: (
       return;
     }
     setLoading(true);
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const q = query(collection(db, name), where('ownerId', '==', uid));
-    return onSnapshot(
+    const unsubscribe = onSnapshot(
       q,
       (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...(d.data() as object) }) as T);
@@ -94,11 +100,16 @@ function useOwnedCollection<T>(name: string, uid: string | undefined, onData?: (
         cb.current?.(data);
       },
       (err) => {
-        console.warn(`Firestore ${name} listener error`, err);
+        console.warn(`Firestore ${name} listener error (retrying)`, err?.code ?? err);
         setLoading(false);
+        retryTimer = setTimeout(() => setAttempt((a) => a + 1), Math.min(60000, 3000 * 2 ** Math.min(attempt, 5)));
       }
     );
-  }, [name, uid]);
+    return () => {
+      unsubscribe();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [name, uid, attempt]);
   return [rows, loading];
 }
 
