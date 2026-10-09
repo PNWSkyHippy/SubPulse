@@ -1,10 +1,9 @@
 /**
  * Ads for the free tier (AdMob via react-native-google-mobile-ads).
  *
- * - Pinned to react-native-google-mobile-ads 17.0.0: 17.1+ requires
- *   react-native >= 0.86, newer than Expo SDK 54's 0.81. The 17.0.0 config
- *   plugin was verified to write the AdMob app id into AndroidManifest during
- *   `expo prebuild`.
+ * - Pinned to react-native-google-mobile-ads 16.5.0. 17.0.0's Kotlin passes a
+ *   nullable String to Promise.reject(code: String, ...) and fails to compile
+ *   against React Native 0.81 (Expo SDK 54); 17.1+ requires RN >= 0.86.
  * - The native module only exists in a development/production build. In Expo
  *   Go the require() below fails, and every function here quietly no-ops, so
  *   the rest of the app keeps working.
