@@ -54,6 +54,12 @@
         }
       ]
     ],
-    "scheme": "subpulse"
+    "scheme": "subpulse",
+    "extra": {
+      "eas": {
+        "projectId": "047e8f5f-1381-4fbc-8633-c8935a7ef95c"
+      }
+    },
+    "owner": "ronkhensleys-team"
   }
 }
