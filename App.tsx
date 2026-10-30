@@ -3,7 +3,7 @@ import { DarkTheme, NavigationContainer, createNavigationContainerRef } from '@r
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useFonts } from 'expo-font';
@@ -62,13 +62,16 @@ const TAB_LABELS: Record<keyof TabParamList, string> = {
 
 function Tabs() {
   const t = useTheme();
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: t.colors.accent,
         tabBarInactiveTintColor: t.colors.textMuted,
-        tabBarStyle: { backgroundColor: t.colors.canvas, borderTopColor: t.colors.border, height: 64, paddingBottom: 8, paddingTop: 6 },
+        // Lift the bar above Android's system buttons (Home/Recents/Back):
+        // the bar keeps its 64dp look, with the system nav-bar height added below it.
+        tabBarStyle: { backgroundColor: t.colors.canvas, borderTopColor: t.colors.border, height: 64 + insets.bottom, paddingBottom: 8 + insets.bottom, paddingTop: 6 },
         tabBarLabelStyle: { fontFamily: t.fonts.bodyMedium, fontSize: 11 },
         tabBarLabel: TAB_LABELS[route.name],
         tabBarIcon: ({ color }) => <Icon name={TAB_ICONS[route.name]} color={color} size={22} />,
