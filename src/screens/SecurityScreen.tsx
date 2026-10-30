@@ -1,13 +1,38 @@
-import React, { useState } from 'react';
+/**
+ * SubPulse Security & lock settings — complete replacement file.
+ *
+ * Drop-in destination in the SubPulse project: src/screens/SecurityScreen.tsx
+ * (replaces the existing file of the same name).
+ *
+ * Everything from the previous Security screen is preserved: the older
+ * app-lock tiers (off / fingerprint-or-face / password), the wrong-
+ * attempt limit, the privacy screen, and the two-step verification
+ * (authenticator app) card.
+ *
+ * Added: the re-login lock tier. It never locks when the app opens —
+ * only after idle time (1 to 30 minutes, starting at 5, changeable at
+ * any time). Unlocking needs the account password first, then a second
+ * step: fingerprint, or the app PIN. An app PIN must be set before
+ * this tier can be turned on, so a fingerprint fallback always exists
+ * even when fingerprint is the second step. If the PIN is ever
+ * forgotten, signing out and back in gets back in, because this tier
+ * never locks on a cold start — then the tier can be turned off and
+ * a new PIN set.
+ */
+
+import React, { useEffect, useState } from 'react';
 import { Alert, Linking, Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { sendEmailVerification } from 'firebase/auth';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/PreferencesContext';
-import { LOCK_AFTER_OPTIONS, LockMode, promptBiometric, useSecurity } from '../context/SecurityContext';
+import { LOCK_AFTER_OPTIONS, LockMode, promptBiometric, RELOGIN_IDLE_MAX, RELOGIN_IDLE_MIN, ReloginSecondStep, useSecurity } from '../context/SecurityContext';
 import { useCodePrompt } from '../components/CodePrompt';
 import { Badge, Body, Button, Card, Chip, ChipRow, Heading, Icon, Input, Label, Row, Screen, SectionHeader, Segmented, ToggleRow } from '../ui/kit';
 import { disableTotp, finishTotpEnrollment, friendlyMfaError, hasTotp, PendingEnrollment, reauthenticate, startTotpEnrollment } from '../utils/mfa';
+import { hasPin, setPin, validatePin, verifyPin } from '../utils/appPin';
+
+const IDLE_QUICK = [1, 5, 15, 30];
 
 export default function SecurityScreen({ navigation }: any) {
   const t = useTheme();
@@ -21,13 +46,113 @@ export default function SecurityScreen({ navigation }: any) {
   const [busy, setBusy] = useState(false);
   const [, setVerifiedTick] = useState(0); // re-render after user.reload()
 
+  // Re-login tier + app PIN state.
+  const [pinSet, setPinSet] = useState(false);
+  const [pinForm, setPinForm] = useState<null | 'set' | 'change'>(null);
+  const [pinCurrent, setPinCurrent] = useState('');
+  const [pinNew, setPinNew] = useState('');
+  const [pinConfirm, setPinConfirm] = useState('');
+  const [pinMessage, setPinMessage] = useState('');
+  const [pendingRelogin, setPendingRelogin] = useState(false);
+  const [pendingSecondStep, setPendingSecondStep] = useState<ReloginSecondStep | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    hasPin().then((v) => {
+      if (alive) setPinSet(v);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const setMode = async (mode: LockMode) => {
     if (mode === 'biometric') {
       if (!biometricInBuild) return Alert.alert('Needs an app update', 'This installed build of SubPulse was made before fingerprint unlock was added. Rebuild the app (eas build) to turn it on — your phone setup is fine. The password lock works now.');
       if (!biometricAvailable) return Alert.alert('Not available', 'Set up a fingerprint or face unlock in your phone settings first, or use the password tier.');
       if (!(await promptBiometric('Confirm to turn on biometric lock'))) return;
     }
+    if (mode === 'relogin') {
+      if (!pinSet) {
+        // An app PIN is required as a fallback before this tier can be on.
+        setPendingRelogin(true);
+        setPinForm('set');
+        setPinMessage('Set an app PIN first — it is the fallback if fingerprint is unavailable.');
+        return;
+      }
+      await update({ mode });
+      return;
+    }
+    setPendingRelogin(false);
+    setPendingSecondStep(null);
     await update({ mode });
+  };
+
+  const setSecondStep = async (step: ReloginSecondStep) => {
+    if (step === 'pin' && !pinSet) {
+      setPendingSecondStep('pin');
+      setPinForm('set');
+      setPinMessage('Set an app PIN first — it becomes the second step.');
+      return;
+    }
+    await update({ secondStep: step });
+  };
+
+  const closePinForm = () => {
+    setPinForm(null);
+    setPinCurrent('');
+    setPinNew('');
+    setPinConfirm('');
+    setPinMessage('');
+    setPendingRelogin(false);
+    setPendingSecondStep(null);
+  };
+
+  const savePin = async () => {
+    const digits = (v: string) => v.replace(/[^0-9]/g, '').slice(0, 8);
+    const next = digits(pinNew);
+    const confirm = digits(pinConfirm);
+    if (pinForm === 'change') {
+      if (!(await verifyPin(digits(pinCurrent)))) {
+        setPinMessage('Current PIN is not right.');
+        return;
+      }
+    }
+    const error = validatePin(next);
+    if (error) {
+      setPinMessage(error);
+      return;
+    }
+    if (next !== confirm) {
+      setPinMessage('New PIN entries do not match.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await setPin(next);
+      setPinSet(true);
+      setPinForm(null);
+      setPinCurrent('');
+      setPinNew('');
+      setPinConfirm('');
+      setPinMessage('PIN saved.');
+      if (pendingRelogin) {
+        await update({ mode: 'relogin', ...(pendingSecondStep ? { secondStep: pendingSecondStep } : {}) });
+      } else if (pendingSecondStep) {
+        await update({ secondStep: pendingSecondStep });
+      }
+      setPendingRelogin(false);
+      setPendingSecondStep(null);
+    } catch (e: any) {
+      setPinMessage(e?.message ?? 'Could not save the PIN.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const stepIdle = async (delta: number) => {
+    const next = Math.min(RELOGIN_IDLE_MAX, Math.max(RELOGIN_IDLE_MIN, settings.idleMinutes + delta));
+    await update({ idleMinutes: next });
   };
 
   // Changing 2-step needs a fresh password check (Firebase "recent login").
@@ -81,6 +206,8 @@ export default function SecurityScreen({ navigation }: any) {
       },
     ]);
 
+  const isRelogin = settings.mode === 'relogin';
+
   return (
     <Screen>
       {codePrompt}
@@ -93,7 +220,11 @@ export default function SecurityScreen({ navigation }: any) {
 
       <Card>
         <SectionHeader title="App lock" icon="shield-key-outline" right={<Badge text={settings.mode === 'off' ? 'Off' : 'On'} tone={settings.mode === 'off' ? 'warn' : 'ok'} />} />
-        <Body small muted style={{ marginVertical: 6 }}>Locks SubPulse when it opens and after you've been away, so someone holding your unlocked phone can't see your bills.</Body>
+        <Body small muted style={{ marginVertical: 6 }}>
+          {isRelogin
+            ? 'Locks SubPulse only after idle time — never when the app opens — so someone picking up your phone later still faces the password plus fingerprint or PIN.'
+            : 'Locks SubPulse when it opens and after you\'ve been away, so someone holding your unlocked phone can\'t see your bills.'}
+        </Body>
         <Segmented<LockMode>
           value={settings.mode}
           onChange={setMode}
@@ -101,6 +232,7 @@ export default function SecurityScreen({ navigation }: any) {
             { value: 'off', label: 'Off' },
             { value: 'biometric', label: biometricLabel },
             { value: 'password', label: 'Password' },
+            { value: 'relogin', label: 'Re-login' },
           ]}
         />
         <Body small muted style={{ marginTop: 6 }}>
@@ -108,7 +240,9 @@ export default function SecurityScreen({ navigation }: any) {
             ? `${biometricLabel}, with your phone PIN or your SubPulse password as backup.`
             : settings.mode === 'password'
               ? 'Your SubPulse account password (and authenticator code if two-step is on). Strongest option.'
-              : 'Anyone with your unlocked phone can open SubPulse.'}
+              : settings.mode === 'relogin'
+                ? 'Only after idle time. Unlock needs your account password first, then your fingerprint or app PIN.'
+                : 'Anyone with your unlocked phone can open SubPulse.'}
         </Body>
         {!biometricInBuild ? (
           <Body small style={{ color: t.colors.warning, marginTop: 4 }}>Fingerprint unlock needs a newer build of the app (rebuild with eas build). Password lock works now.</Body>
@@ -116,7 +250,7 @@ export default function SecurityScreen({ navigation }: any) {
           <Body small style={{ color: t.colors.warning, marginTop: 4 }}>No fingerprint/face set up on this phone — biometric tier unavailable.</Body>
         ) : null}
 
-        {settings.mode !== 'off' ? (
+        {settings.mode !== 'off' && !isRelogin ? (
           <>
             <Label style={{ marginTop: 12, marginBottom: 6 }}>Lock after leaving the app</Label>
             <ChipRow>
@@ -138,6 +272,81 @@ export default function SecurityScreen({ navigation }: any) {
             />
             <Button compact kind="secondary" icon="lock-outline" title="Lock now" onPress={lockNow} />
           </>
+        ) : null}
+
+        {(isRelogin || pendingRelogin) ? (
+          <>
+            <Label style={{ marginTop: 12, marginBottom: 6 }}>Lock after idle</Label>
+            <Row style={{ alignItems: 'center', gap: 8 }}>
+              <Button compact kind="secondary" title="-" onPress={() => stepIdle(-1)} />
+              <Body style={{ minWidth: 110, textAlign: 'center' }}>{settings.idleMinutes} minute{settings.idleMinutes === 1 ? '' : 's'}</Body>
+              <Button compact kind="secondary" title="+" onPress={() => stepIdle(1)} />
+            </Row>
+            <ChipRow>
+              {IDLE_QUICK.map((m) => (
+                <Chip key={m} label={`${m} min`} active={settings.idleMinutes === m} onPress={() => update({ idleMinutes: m })} />
+              ))}
+            </ChipRow>
+            <Body small muted style={{ marginTop: 6 }}>1 to 30 minutes. You can change this at any time.</Body>
+
+            <Label style={{ marginTop: 12, marginBottom: 6 }}>Second step after the password</Label>
+            <Segmented<ReloginSecondStep>
+              value={settings.secondStep}
+              onChange={setSecondStep}
+              options={[
+                { value: 'fingerprint', label: biometricLabel },
+                { value: 'pin', label: 'PIN' },
+              ]}
+            />
+            <Body small muted style={{ marginTop: 6 }}>
+              {settings.secondStep === 'fingerprint'
+                ? 'Fingerprint first; the app PIN is the fallback if fingerprint is unavailable.'
+                : 'The app PIN you set below.'}
+            </Body>
+
+            <Label style={{ marginTop: 12, marginBottom: 6 }}>App PIN</Label>
+            <Body small muted>{pinSet ? 'A PIN is set on this phone.' : 'No PIN is set yet.'} A PIN is required as a fallback while the re-login lock is on, even when fingerprint is the second step.</Body>
+            {!pinForm ? (
+              <Button style={{ marginTop: 8 }} compact kind="secondary" title={pinSet ? 'Change PIN' : 'Set PIN'} onPress={() => { setPinForm(pinSet ? 'change' : 'set'); setPinMessage(''); }} />
+            ) : (
+              <View style={{ gap: 8, marginTop: 8 }}>
+                {pinForm === 'change' ? (
+                  <>
+                    <Label>Current PIN</Label>
+                    <Input secureTextEntry keyboardType="number-pad" value={pinCurrent} onChangeText={(v) => setPinCurrent(v.replace(/[^0-9]/g, '').slice(0, 8))} placeholder="••••" />
+                  </>
+                ) : null}
+                <Label>{pinForm === 'change' ? 'New PIN' : 'PIN'}</Label>
+                <Input secureTextEntry keyboardType="number-pad" value={pinNew} onChangeText={(v) => setPinNew(v.replace(/[^0-9]/g, '').slice(0, 8))} placeholder="4 to 8 digits" />
+                <Label>Confirm PIN</Label>
+                <Input secureTextEntry keyboardType="number-pad" value={pinConfirm} onChangeText={(v) => setPinConfirm(v.replace(/[^0-9]/g, '').slice(0, 8))} placeholder="4 to 8 digits" onSubmitEditing={savePin} />
+                {pinMessage ? <Body small muted>{pinMessage}</Body> : null}
+                <Row>
+                  <Button style={{ flex: 1 }} title="Save PIN" loading={busy} onPress={savePin} />
+                  <Button kind="secondary" title="Cancel" onPress={closePinForm} />
+                </Row>
+              </View>
+            )}
+            {pinForm === null && pinMessage ? <Body small muted style={{ marginTop: 6 }}>{pinMessage}</Body> : null}
+
+            <Label style={{ marginTop: 12, marginBottom: 6 }}>Wrong passwords or PINs before sign-out</Label>
+            <ChipRow>
+              {[3, 5, 10].map((n) => (
+                <Chip key={n} label={`${n} attempts`} active={settings.maxPasswordAttempts === n} onPress={() => update({ maxPasswordAttempts: n })} />
+              ))}
+            </ChipRow>
+            <ToggleRow
+              title="Privacy screen"
+              subtitle="Hide SubPulse in Recents and block screenshots"
+              value={settings.privacyScreen}
+              onChange={(v) => update({ privacyScreen: v })}
+            />
+            <Button compact kind="secondary" icon="lock-outline" title="Lock now" onPress={lockNow} />
+          </>
+        ) : null}
+
+        {pendingRelogin && !pinForm ? (
+          <Body small style={{ color: t.colors.warning, marginTop: 8 }}>Set an app PIN above to turn on the re-login lock.</Body>
         ) : null}
       </Card>
 
